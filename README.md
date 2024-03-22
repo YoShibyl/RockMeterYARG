@@ -1,4 +1,7 @@
-# Rock Meter for YARG
+
+![rock meter with needle](https://github.com/YoShibyl/RockMeterYARG/assets/18250695/fd2bb7f6-9fcb-4c05-af65-0428e84581ff)
+
+# Rock Meter mod for YARG
 A BepInEx 6 mod for YARG v0.12.1+ that adds a Rock Meter and the ability to fail songs
 
 Currently tested and working versions:
