@@ -9,25 +9,22 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using TMPro;
+using YARG.Core.Engine;
+using System.Linq;
+using YARG.Core.Engine.Guitar;
+using YARG.Core.Engine.Drums;
+using System.Collections;
 
 namespace RockMeterYARG
 {
+    
     [HarmonyPatch(typeName:"YARG.Gameplay.Player.FiveFretPlayer", methodName: "OnNoteMissed")]
     public class FiveFretMissNoteHandler
     {
         [HarmonyPostfix]
         static void Postfix()
         {
-            RockMeterYARG.Instance.DrainHealth_FiveFret();
-        }
-    }
-    [HarmonyPatch(typeName: "YARG.Core.Engine.Guitar.GuitarEngine", methodName: "Overstrum")]
-    public class FiveFretOverstrumHandler
-    {
-        [HarmonyPostfix]
-        static void Postfix()
-        {
-            RockMeterYARG.Instance.DrainHealth_FiveFret();
+            RockMeterYARG.Instance.DrainHealth();
         }
     }
     [HarmonyPatch(typeName: "YARG.Gameplay.Player.FiveFretPlayer", methodName: "OnNoteHit")]
@@ -36,7 +33,43 @@ namespace RockMeterYARG
         [HarmonyPostfix]
         static void Postfix()
         {
-            RockMeterYARG.Instance.AddHealth_FiveFret();
+            RockMeterYARG.Instance.AddHealth();
+        }
+    }
+    [HarmonyPatch(typeName: "YARG.Core.Engine.Guitar.GuitarEngine", methodName: "Overstrum")]
+    public class FiveFretOverstrumHandler
+    {
+        [HarmonyPostfix]
+        static void Postfix()
+        {
+            RockMeterYARG.Instance.DrainHealth();
+        }
+    }
+    [HarmonyPatch(typeName: "YARG.Gameplay.Player.DrumsPlayer", methodName: "OnNoteMissed")]
+    public class DrumMissNoteHandler
+    {
+        [HarmonyPostfix]
+        static void Postfix()
+        {
+            RockMeterYARG.Instance.DrainHealth();
+        }
+    }
+    [HarmonyPatch(typeName: "YARG.Gameplay.Player.DrumsPlayer", methodName: "OnNoteHit")]
+    public class DrumHitNoteHandler
+    {
+        [HarmonyPostfix]
+        static void Postfix()
+        {
+            RockMeterYARG.Instance.AddHealth();
+        }
+    }
+    [HarmonyPatch(typeName: "YARG.Core.Engine.Drums.DrumsEngine", methodName: "Overhit")]
+    public class DrumOverhitHandler
+    {
+        [HarmonyPostfix]
+        static void Postfix()
+        {
+            RockMeterYARG.Instance.DrainHealth();
         }
     }
     [HarmonyPatch(typeName: "YARG.Gameplay.GameManager", methodName: "CreatePlayers")]
@@ -45,7 +78,7 @@ namespace RockMeterYARG
         [HarmonyPostfix]
         static void Postfix()
         {
-            RockMeterYARG.Instance.InitHealthMeter_FiveFret();
+            RockMeterYARG.Instance.InitHealthMeter();
         }
     }
     [HarmonyPatch(typeName: "YARG.Gameplay.GameManager", methodName: "Resume")]
@@ -79,7 +112,7 @@ namespace RockMeterYARG
 
         private const string MyGUID = "com.yoshibyl.RockMeterYARG";
         private const string PluginName = "RockMeterYARG";
-        private const string VersionString = "0.1.0";
+        private const string VersionString = "0.2.0";
 
         public string LogMsg(object obj)
         {
@@ -109,18 +142,22 @@ namespace RockMeterYARG
         public bool restartOnFail;
         public bool songFailed;
         public double defaultHealth = 0.5;
-        public double missDrainAmount;  // Amount to take from health on note miss or overstrum
+        public double missDrainAmount;  // Amount to take from health on note miss or overstrum/overhit
         public double hitHealthAmount;  // Amount to add to health on note hit usually
         public double hitSPGainAmount;  // Amount to add to health on note hit during Star Power
         public double currentHealth;
-        
-        public YARG.Core.Engine.BaseStats playerStats;
+
+        public List<UnityEngine.Object> players;
+        public List<YARG.Core.Engine.BaseStats> statsList;
         public int score;
+        public int maxStreak;
         public int ghosts;
         public int notesHit;
         public int notesTotal;
         public int notesMissed;
         public int overstrums;
+        public int overhits;
+        public string msgSummary;
 
         public GameObject dbgTxtObj;
         public TextMeshProUGUI dbgTxtTMP;
@@ -138,7 +175,7 @@ namespace RockMeterYARG
         public MethodInfo dialogClearMethod;
         public MethodInfo toastMethod_Info;
         public MethodInfo toastMethod_Warn;
-        // TO DO: Hook into other toast notification types
+        // TO DO: Hook into other toast notification types (even tho we might not use them)
         // public MethodInfo toastMethod_Err;
 
         public void Dbg_SetSquare1080p()
@@ -162,35 +199,31 @@ namespace RockMeterYARG
             {
                 List<string> argz = new List<string> { title, msg };
                 ret = dialogShowMethod.Invoke(dmo.GetComponent("YARG.Menu.Persistent.DialogManager"), argz.ToArray());
-                // dmo.SetActive(false);
                 return ret;
             }
             else
             {
-                // dmo.SetActive(false);
                 return null;
             }
         }
-
+        /*
         public void QuitSong(bool failed = false)
         {
-            // gmo = GameObject.FindObjectOfType(gmType, true) as GameObject;
             if (failed)
             {
                 PauseOnFail();
-                string msgStats = "Score:  " + score.ToString("N0")
+                msgSummary = "Score:  " + score.ToString("N0")
                     + "<br>Notes Hit:  " + notesHit.ToString("N0") + " / " + notesTotal.ToString("N0") + " (-" + notesMissed.ToString("N0")
                     + ")<br>Overstrums:  " + overstrums.ToString("N0")
-                    + "<br>Ghost Inputs:  " + ghosts.ToString("N0");
-                // dialogClearMethod.Invoke(dmo, null);
+                    + "<br>Ghost Inputs:  " + ghosts.ToString("N0"); 
                 
-                List<string> argz = new List<string> { "Song failed!", msgStats };
-                Dialog("Song failed!", msgStats);
+                List<string> argz = new List<string> { "Song failed!", msgSummary };
+                Dialog("Song failed!", msgSummary);
             }
             quitMeth.Invoke(gmo.GetComponent("YARG.Gameplay.GameManager"), null);
-        }
+        } // */ // (not using this for now)
 
-        public void FailSong()
+        public void FailSong(int whichPlayer = 0)   // We might eventually detect which player failed, idk
         {
             if (meterEnabled && !practice)
             {
@@ -199,12 +232,30 @@ namespace RockMeterYARG
                 {
                     try
                     {
-                        playerStats = GetFiveFretStats();
-                        score = playerStats.TotalScore;
-                        notesHit = playerStats.NotesHit;
-                        notesTotal = playerStats.TotalNotes;
-                        overstrums = (playerStats as YARG.Core.Engine.Guitar.GuitarStats).Overstrums;
-                        ghosts = (playerStats as YARG.Core.Engine.Guitar.GuitarStats).GhostInputs;
+                        BaseStats stats = statsList[whichPlayer];
+                        if (stats is GuitarStats || stats is DrumsStats)
+                        {
+                            score = stats.TotalScore;
+                            notesHit = stats.NotesHit;
+                            notesTotal = stats.TotalNotes;
+                            maxStreak = stats.MaxCombo;
+                            msgSummary = "<size=36><b><u>Stats</u></b></size><br><align=\"left\"><pos=35%>Score:<pos=55%>" + score.ToString("N0")
+                                + "<br><pos=35%>Notes Hit:<pos=55%>" + notesHit.ToString("N0") + " / " + notesTotal.ToString("N0")
+                                + "<br><pos=35%>Best Streak:<pos=55%>" + maxStreak.ToString("N0");
+                            if (stats.GetType().ToString() == "YARG.Core.Engine.Guitar.GuitarStats")
+                            {
+                                overstrums = (stats as YARG.Core.Engine.Guitar.GuitarStats).Overstrums;
+                                ghosts = (stats as YARG.Core.Engine.Guitar.GuitarStats).GhostInputs;
+                                msgSummary += "<br><pos=35%>Overstrums:<pos=55%>" + overstrums.ToString("N0")
+                                   + "<br><pos=35%>Ghost Inputs:<pos=55%>" + ghosts.ToString("N0");
+                            }
+                            else if (stats.GetType().ToString() == "YARG.Core.Engine.Drums.DrumsStats")
+                            {
+                                overhits = (stats as YARG.Core.Engine.Drums.DrumsStats).Overhits;
+                                msgSummary += "<br><pos=35%>Overhits:<pos=55%>" + overhits.ToString("N0");
+                            }
+                            msgSummary += "</align><br><br><size=36>Press <b>PAUSE</b> or click the button below to restart.</size>";
+                        }
 
                         RestartSong(true);
                     } catch(Exception e) { LogMsg(e); }
@@ -212,20 +263,20 @@ namespace RockMeterYARG
                 else
                 {
                     Destroy(meterContainer);
+                    ToastInfo("Song failed!");
                 }
-                // ToastInfo("Song failed!"); // TO DO: Show % song progress on fail
             }
         }
-
-        public void UpdateHealthMeter_FiveFret(double health)
+        public void UpdateHealthMeter(double health)
         {
-            SetHealthNeedle_FiveFret((float)health);
+            SetHealthNeedle((float)health);
             LogMsg("Health updated: " + health);
             if (health <= 0f && !songFailed)
             {
                 FailSong();
             }
         }
+
         // Toast notification methods
         public void ToastInfo(string txt = "")
         {
@@ -243,13 +294,13 @@ namespace RockMeterYARG
             List<string> argz = new List<string> { txt };
             toastMethod_Warn.Invoke(tmo, argz.ToArray());
         }
-
+        // Methods to check whether we're in Practice Mode or watching a replay
+        // This is so we don't use the Rock Meter in those modes
         public bool IsPractice()
         {
             if (gmo != null)
             {
                 object ret = gmType.GetProperty("IsPractice").GetValue(gmo.gameObject.GetComponent("YARG.Gameplay.GameManager"));
-                // object ret = gmType.GetProperty("IsPractice").GetValue(gmo);
                 
                 return (bool)ret;
             }
@@ -300,13 +351,12 @@ namespace RockMeterYARG
             {
                 if (failed)
                 {
-                    string msgStats = "<align=\"left\"><size=36><b>   <u>Stats</u></b></size><br>Score:  " + score.ToString("N0")
-                        + "<br>Notes Hit:  " + notesHit.ToString("N0") + " / " + notesTotal.ToString("N0")
-                        + "<br>Overstrums:  " + overstrums.ToString("N0")
-                        + "<br>Ghost Inputs:  " + ghosts.ToString("N0")
-                        + "</align><br><br><size=36>Press <b>PAUSE</b> or click the button below to restart.</size>";
-
-                    currentDialog = Dialog("Song failed!", msgStats);
+                    // string msgStats = "<align=\"left\"><size=36><b>   <u>Stats</u></b></size><br>Score:  " + score.ToString("N0")
+                    //     + "<br>Notes Hit:  " + notesHit.ToString("N0") + " / " + notesTotal.ToString("N0")
+                    //     + "<br>Overstrums:  " + overstrums.ToString("N0")
+                    //     + "<br>Ghost Inputs:  " + ghosts.ToString("N0")
+                    //     + "</align><br><br><size=36>Press <b>PAUSE</b> or click the button below to restart.</size>";
+                    currentDialog = Dialog("Song failed!", msgSummary);
 
                     PauseOnFail();
                 }
@@ -339,31 +389,64 @@ namespace RockMeterYARG
             }
         }
 
-        public void DrainHealth_FiveFret(int playerIndex = 0)
+        public void DrainHealth()
         {
+            double oldHealth = currentHealth;
             if (!practice && !replay)
             {
                 currentHealth -= missDrainAmount;
                 if (currentHealth < 0) { currentHealth = 0; }
-                UpdateHealthMeter_FiveFret(currentHealth);
+                if (currentHealth != oldHealth) { UpdateHealthMeter(currentHealth); }
             }
         }
-        public void AddHealth_FiveFret()
+        public void AddHealth()
         {
+            double oldHealth = currentHealth;
             if (!practice && !replay && currentHealth < 1)
             {
-                YARG.Core.Engine.BaseStats stats = null;
-                try { stats = GetFiveFretStats(); } catch { }
+                YARG.Core.Engine.BaseStats stats = statsList[0];
                 if (stats != null)
                 {
                     if (stats.IsStarPowerActive) { currentHealth += hitSPGainAmount; }
                     else { currentHealth += hitHealthAmount; }
                 }
                 if (currentHealth > 1) { currentHealth = 1; }
-                UpdateHealthMeter_FiveFret(currentHealth);
+                if (currentHealth != oldHealth) { UpdateHealthMeter(currentHealth); }
             }
         }
 
+        public List<BaseStats> GetAllStats()
+        {
+            List<BaseStats> ret = new List<BaseStats>();
+            if (gmo != null)
+            {
+                IEnumerable<UnityEngine.Object> players = GetPlayers();
+                foreach (GameObject player in players)
+                {
+                    var guitarComp = player.GetComponent("YARG.Gameplay.Player.FiveFretPlayer");
+                    var drumComp = player.GetComponent("YARG.Gameplay.Player.DrumsPlayer");
+                    if (guitarComp != null)
+                        ret.Add(basePlayerType.GetProperty("BaseStats").GetValue(guitarComp) as BaseStats);
+                    else if (drumComp != null)
+                    {
+                        ret.Add(basePlayerType.GetProperty("BaseStats").GetValue(drumComp) as BaseStats);
+                    }
+                }
+            }
+            return ret;
+        }
+        public List<GameObject> GetPlayers()
+        {
+            // To do: come up with a better way of finding all players
+            IEnumerable<UnityEngine.Object> rawPlayers = Resources.FindObjectsOfTypeAll(typeof(GameObject)).Where(obj => obj.name.EndsWith("Visual(Clone)")) as IEnumerable<UnityEngine.Object>;
+            List<GameObject> ret = new List<GameObject>();
+            foreach(UnityEngine.Object rawPlayer in rawPlayers)
+            {
+                ret.Add(rawPlayer as GameObject);
+            }
+            ret.Reverse();
+            return ret;
+        }
         public YARG.Core.Engine.Guitar.GuitarStats GetFiveFretStats()
         {
             object player = GameObject.Find("FiveFretVisual(Clone)").GetComponent("YARG.Gameplay.Player.FiveFretPlayer"); // gmType.GetProperty("_players").GetValue(manager) as List<object>;
@@ -390,7 +473,7 @@ namespace RockMeterYARG
             return null;
         }
 
-        public void SetHealthNeedle_FiveFret(float health)
+        public void SetHealthNeedle(float health)
         {
             if (needleObj != null)
             {
@@ -399,7 +482,7 @@ namespace RockMeterYARG
             }
         }
 
-        public void InitHealthMeter_FiveFret()
+        public void InitHealthMeter()
         {
             // get game manager
             if (gmo == null)
@@ -408,6 +491,7 @@ namespace RockMeterYARG
             }
             practice = IsPractice();
             replay = IsReplay();
+            statsList = GetAllStats();
             // get hud container
             hudObj = GameObject.Find("Canvas/Main HUD Container");
             if (hudObj != null && meterObj == null && meterEnabled && !practice && !replay)
@@ -469,9 +553,7 @@ namespace RockMeterYARG
             toastMethod_Info = tmType.GetMethod("ToastInformation");
             toastMethod_Warn = tmType.GetMethod("ToastWarning");
 
-
             // // To do: implement multiple players eventually
-
             inGame = false;
             songFailed = false;
 
@@ -485,19 +567,19 @@ namespace RockMeterYARG
             hitHealthAmount = 0.0069;  // Nice
             hitSPGainAmount = 0.045;
 
-            logs = new List<string>();
-
+            // logs = new List<string>();
+            msgSummary = "No stats (this is a bug)";
             SceneManager.sceneLoaded += delegate (Scene sc, LoadSceneMode __)
             {
                 if (sc.name == "Gameplay") {
                     currentHealth = defaultHealth;
                     inGame = true;
                     songFailed = false;
-                }
+                } /*
                 else if (sc.name == "PersistentScene")
                 {
-
-                }
+                    // currently not used for this mod ig
+                } */
             };
             SceneManager.sceneUnloaded += delegate (Scene sc)
             {
@@ -507,6 +589,7 @@ namespace RockMeterYARG
                     inGame = false;
                     meterContainer = null;
                     practice = false;
+                    replay = false;
                 }
             };
 
@@ -527,10 +610,6 @@ namespace RockMeterYARG
                 {
                     dbgTxtTMP = dbgTxtObj.GetComponent<TextMeshProUGUI>();
                     dbgTxtTMP.text += "<br>Rock Meter:   " + Math.Round(currentHealth * 100).ToString() + "%";
-                }
-                if (songFailed)
-                {
-
                 }
             }
         }
