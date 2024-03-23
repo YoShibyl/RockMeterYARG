@@ -7,7 +7,7 @@ A BepInEx 6 mod for YARG v0.12.1+ that adds a Rock Meter and the ability to fail
 ## Currently tested and working versions
 | Stable   | Nightly (recommended) |
 |----------|-----------------------|
-| v0.12.1  | b2346                 |
+| v0.12.1  | b2353                 |
 
 ## Disclaimer
 As this is a modification to the game, bugs may occur and performance may be slightly impacted.  Also, I'm not that great at coding, so if you can improve this, feel free to help out.
@@ -16,6 +16,7 @@ As this is a modification to the game, bugs may occur and performance may be sli
 
 ## Known issues
 - The mod currently only works properly with one player at a time, so please don't use this mod with multiple players!
+- Clicking and dragging the Rock Meter doesn't always work due to the hitbox being half the size of the actual meter for some reason
 
 ## Installation
 1) Install [BepInEx 6.0.0-pre1](https://github.com/BepInEx/BepInEx/releases/tag/v6.0.0-pre.1) to a ***portable installation*** of YARG.
@@ -35,7 +36,7 @@ To uninstall the mod, remove the following files and folders from the game's fol
 - EliteAsian123 : Created YARG
 - Everyone who has worked on YARG
 - The Clone Hero / YARG community
-- This mod was created by Yoshibyl
+- This mod was created by YoShibyl
 
 **Shout-out to these streamers:**
 - Acai : [Twitch](https://twitch.tv/Acai)
