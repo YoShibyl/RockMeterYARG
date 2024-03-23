@@ -1,7 +1,7 @@
+# Rock Meter mod for YARG
 
 ![rock meter with needle](https://github.com/YoShibyl/RockMeterYARG/assets/18250695/fd2bb7f6-9fcb-4c05-af65-0428e84581ff)
 
-# Rock Meter mod for YARG
 A BepInEx 6 mod for YARG v0.12.1+ that adds a Rock Meter and the ability to fail songs
 
 ## Currently tested and working versions
@@ -15,8 +15,7 @@ As this is a modification to the game, bugs may occur and performance may be sli
 ### While this mod and BepInEx are installed, please *DO NOT* report any bugs to YARC, *unless* you can reproduce them in the unmodded game!
 
 ## Known issues
-- The mod currently only works properly with one player at a time, and only 5-fret guitar players, so please don't use this mod with multiple players or Drums! *(drums will be supported soon™)*
-- There currently isn't a way to disable failing in-game without removing the plugin's DLL file
+- The mod currently only works properly with one player at a time, so please don't use this mod with multiple players!
 
 ## Installation
 1) Install [BepInEx 6.0.0-pre1](https://github.com/BepInEx/BepInEx/releases/tag/v6.0.0-pre.1) to a ***portable installation*** of YARG.
