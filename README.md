@@ -4,10 +4,10 @@
 # Rock Meter mod for YARG
 A BepInEx 6 mod for YARG v0.12.1+ that adds a Rock Meter and the ability to fail songs
 
-Currently tested and working versions:
+## Currently tested and working versions
 | Stable   | Nightly (recommended) |
 |----------|-----------------------|
-| v0.12.1  | b2332                 |
+| v0.12.1  | b2346                 |
 
 ## Disclaimer
 As this is a modification to the game, bugs may occur and performance may be slightly impacted.  Also, I'm not that great at coding, so if you can improve this, feel free to help out.
@@ -23,7 +23,8 @@ As this is a modification to the game, bugs may occur and performance may be sli
     - You can download the latest nightly build of YARG [here](https://github.com/YARC-Official/YARG-BleedingEdge/releases) and then extract it to its own folder.
 2) Download and extract the latest release of the mod from [Releases](https://github.com/YoShibyl/RockMeterYARG/releases)
 3) Launch `YARG.exe`, and then load a song with only ONE (1) five-fret guitar player active.
-    - You should see the Rock Meter appear on the right side of the screen, somewhere below the score counter.  If not, then you didn't properly install the mod, or an update could have broken it.
+    - You should see the Rock Meter appear on the right side of the screen, somewhere below the score counter.  If not, then either you didn't properly install the mod, or an update could have broken it.
+    - Updates that change `YARG.Core` may hypothetically break the mod, so keep that in mind when updating to a nightly build newer than what is listed above.
 
 ### Uninstalling
 To uninstall the mod, remove the following files and folders from the game's folder:
