@@ -15,8 +15,6 @@ using YARG.Core.Engine;
 using System.Linq;
 using YARG.Core.Engine.Guitar;
 using YARG.Core.Engine.Drums;
-using System.Collections;
-using UnityEngine.InputSystem.LowLevel;
 
 namespace RockMeterYARG
 {
@@ -115,7 +113,7 @@ namespace RockMeterYARG
 
         private const string MyGUID = "com.yoshibyl.RockMeterYARG";
         private const string PluginName = "RockMeterYARG";
-        private const string VersionString = "0.3.0";
+        private const string VersionString = "0.3.1";
 
         public string LogMsg(object obj)
         {
@@ -485,16 +483,13 @@ namespace RockMeterYARG
             }
         }
 
-        public void SetSizeOfRect(RectTransform rectT, float size = 1f)
-        {
-            RectTransform rect = rectT;
-            rect.sizeDelta = new Vector2(size,size);
-        }
-
         public void SetMeterPos(float x, float y)
         {
-            if (x > Screen.width || x < 0) x = Screen.width * 0.875f;
-            if (y > Screen.height || y < 0) x = Screen.height * 0.6f;
+            if (x > Screen.width || x < 0 || y > Screen.height || y < 0)
+            { // Check if the meter is off-screen
+                x = Screen.width * 0.875f;
+                y = Screen.height * 0.6f;
+            }
             meterContainer.transform.position = new Vector3(x,y,0);
             meterPosX = x;
             meterPosY = y;
@@ -559,6 +554,7 @@ namespace RockMeterYARG
 
         public bool meterEnabled;
 
+        #region Mouse Handlers
         // Handlers for rock meter dragging with mouse
         public void MouseDownHandle()
         {
@@ -588,7 +584,7 @@ namespace RockMeterYARG
                 UpdateConfig();
             }
         }
-
+        #endregion
         // Config entries
         public ConfigEntry<int> cfgMeterX;
         public ConfigEntry<int> cfgMeterY;
@@ -622,7 +618,6 @@ namespace RockMeterYARG
             cfgEnableMeter = Config.Bind<bool>("Rock Meter", "EnableRockMeter", true,
                 "Enable or disable the Rock Meter entirely");
             meterEnabled = cfgEnableMeter.Value;
-            // meterEnabled = false;     // uncomment to disable the meter entirely
 
             cfgRestartFail = Config.Bind<bool>("Rock Meter", "RestartOnFail", true,
                 "Control whether to force restart on fail.  If false, then gameplay will not be interrupted on fail.");
@@ -706,8 +701,10 @@ namespace RockMeterYARG
             }
             if (inGame && Mouse.current.rightButton.isPressed)
             {
-                meterPosX = Screen.width * 0.875f;
-                meterPosY = Screen.height * 0.6f;
+                SetMeterPos(Screen.width * 0.875f, Screen.height * 0.6f);
+                isDragging = false;
+                isMouseDown = false;
+                UpdateConfig();
             }
         }
         #endregion
