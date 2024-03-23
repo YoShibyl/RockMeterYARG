@@ -4,16 +4,19 @@ using System.IO;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Logging;
+using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 using TMPro;
 using YARG.Core.Engine;
 using System.Linq;
 using YARG.Core.Engine.Guitar;
 using YARG.Core.Engine.Drums;
 using System.Collections;
+using UnityEngine.InputSystem.LowLevel;
 
 namespace RockMeterYARG
 {
@@ -112,7 +115,7 @@ namespace RockMeterYARG
 
         private const string MyGUID = "com.yoshibyl.RockMeterYARG";
         private const string PluginName = "RockMeterYARG";
-        private const string VersionString = "0.2.0";
+        private const string VersionString = "0.3.0";
 
         public string LogMsg(object obj)
         {
@@ -137,7 +140,6 @@ namespace RockMeterYARG
         public GameObject pmm;
         public float timerDebugText;
         public float timerGameInit;
-
         public bool inGame;
         public bool restartOnFail;
         public bool songFailed;
@@ -147,17 +149,23 @@ namespace RockMeterYARG
         public double hitSPGainAmount;  // Amount to add to health on note hit during Star Power
         public double currentHealth;
 
+        public Vector2 mousePosOnDown;
+        public float meterPosX;
+        public float meterPosY;
+        public Vector2 dragDiff;
+        public bool isDragging;
+        public bool isMouseDown;
+
         public List<UnityEngine.Object> players;
         public List<YARG.Core.Engine.BaseStats> statsList;
-        public int score;
-        public int maxStreak;
-        public int ghosts;
-        public int notesHit;
-        public int notesTotal;
-        public int notesMissed;
-        public int overstrums;
-        public int overhits;
-        public string msgSummary;
+        public int score;           // Score on fail
+        public int maxStreak;       // Note streak on fail
+        public int ghosts;          // Ghost inputs on fail
+        public int notesHit;        // Notes hit
+        public int notesTotal;      // Total notes in song
+        public int overstrums;      // Overstrums (guitar)
+        public int overhits;        // Overhits (drums)
+        public string msgSummary;   // Message to show on fail
 
         public GameObject dbgTxtObj;
         public TextMeshProUGUI dbgTxtTMP;
@@ -177,7 +185,7 @@ namespace RockMeterYARG
         public MethodInfo toastMethod_Warn;
         // TO DO: Hook into other toast notification types (even tho we might not use them)
         // public MethodInfo toastMethod_Err;
-
+#if DEBUG
         public void Dbg_SetSquare1080p()
         {
             Screen.SetResolution(1080, 1080, false);
@@ -190,7 +198,7 @@ namespace RockMeterYARG
         {
             Screen.SetResolution(1920, 1080, false);
         }
-
+#endif
         public object Dialog(string title = "Top text", string msg = "This message should not appear.  I'm telling God!")
         {
             dmo = FindAndSetActive("Dialog Container");
@@ -206,7 +214,7 @@ namespace RockMeterYARG
                 return null;
             }
         }
-        /*
+        /* // Quitting not implemented, might delete later
         public void QuitSong(bool failed = false)
         {
             if (failed)
@@ -294,6 +302,7 @@ namespace RockMeterYARG
             List<string> argz = new List<string> { txt };
             toastMethod_Warn.Invoke(tmo, argz.ToArray());
         }
+
         // Methods to check whether we're in Practice Mode or watching a replay
         // This is so we don't use the Rock Meter in those modes
         public bool IsPractice()
@@ -336,7 +345,6 @@ namespace RockMeterYARG
             {
                 if (obj is GameObject && obj.name == name)
                 {
-                    
                     (obj as GameObject).SetActive(active);
                     ret = obj as GameObject;
                 }
@@ -351,11 +359,6 @@ namespace RockMeterYARG
             {
                 if (failed)
                 {
-                    // string msgStats = "<align=\"left\"><size=36><b>   <u>Stats</u></b></size><br>Score:  " + score.ToString("N0")
-                    //     + "<br>Notes Hit:  " + notesHit.ToString("N0") + " / " + notesTotal.ToString("N0")
-                    //     + "<br>Overstrums:  " + overstrums.ToString("N0")
-                    //     + "<br>Ghost Inputs:  " + ghosts.ToString("N0")
-                    //     + "</align><br><br><size=36>Press <b>PAUSE</b> or click the button below to restart.</size>";
                     currentDialog = Dialog("Song failed!", msgSummary);
 
                     PauseOnFail();
@@ -482,6 +485,28 @@ namespace RockMeterYARG
             }
         }
 
+        public void SetSizeOfRect(RectTransform rectT, float size = 1f)
+        {
+            RectTransform rect = rectT;
+            rect.sizeDelta = new Vector2(size,size);
+        }
+
+        public void SetMeterPos(float x, float y)
+        {
+            if (x > Screen.width || x < 0) x = Screen.width * 0.875f;
+            if (y > Screen.height || y < 0) x = Screen.height * 0.6f;
+            meterContainer.transform.position = new Vector3(x,y,0);
+            meterPosX = x;
+            meterPosY = y;
+        }
+        public void UpdateConfig()
+        {
+            cfgMeterX.SetSerializedValue(((int)meterPosX).ToString());
+            cfgMeterY.SetSerializedValue(((int)meterPosY).ToString());
+            cfgEnableMeter.SetSerializedValue(meterEnabled.ToString());
+            cfgRestartFail.SetSerializedValue(restartOnFail.ToString());
+        }
+
         public void InitHealthMeter()
         {
             // get game manager
@@ -505,9 +530,10 @@ namespace RockMeterYARG
                 meterObj.transform.SetParent(meterContainer.transform, false);
                 needleObj = new GameObject("Health Needle");
                 needleObj.transform.SetParent(meterContainer.transform, false);
-                meterContainer.transform.localScale = new Vector3(2,2,2);
-                meterContainer.transform.Translate(Screen.width * 0.375f, Screen.height * 0.1f, 0);
+                meterContainer.transform.localScale = new Vector3(2,2,1);
 
+                SetMeterPos(cfgMeterX.Value, cfgMeterY.Value);
+                
                 if (File.Exists(meterAsset) && File.Exists(needleAsset))
                 {
                     meterImg = meterObj.AddComponent<RawImage>();
@@ -533,8 +559,44 @@ namespace RockMeterYARG
 
         public bool meterEnabled;
 
+        // Handlers for rock meter dragging with mouse
+        public void MouseDownHandle()
+        {
+            mousePosOnDown = Mouse.current.position.ReadValue();
+            if (inGame && meterImg != null)
+            {
+                RectTransform rect = meterObj.GetComponent<RectTransform>();
+                LogMsg("Rect  =" + rect.ToString());
+                LogMsg("Mouse =" + mousePosOnDown.ToString());
+                isDragging = rect.rect.Contains(mousePosOnDown - (Vector2)meterContainer.transform.position);
+                dragDiff = mousePosOnDown - (Vector2)meterContainer.transform.position;
+            }
+        }
+        public void MouseDragHandle()
+        {
+            if (meterContainer != null)
+            {
+                meterContainer.transform.position = (Vector3)Mouse.current.position.value - (Vector3)dragDiff;
+            }
+        }
+        public void MouseUpHandle()
+        {
+            if (inGame && meterContainer != null)
+            {
+                Vector2 pos = meterContainer.transform.position;
+                SetMeterPos(pos.x, pos.y);
+                UpdateConfig();
+            }
+        }
+
+        // Config entries
+        public ConfigEntry<int> cfgMeterX;
+        public ConfigEntry<int> cfgMeterY;
+        public ConfigEntry<bool> cfgRestartFail;
+        public ConfigEntry<bool> cfgEnableMeter;
+
         #region Unity Methods
-        public void Start()
+        private void Start()
         {
             // Load assemblies and methods from them
             yargMainAsm = Assembly.Load("Assembly-CSharp.dll");
@@ -557,29 +619,41 @@ namespace RockMeterYARG
             inGame = false;
             songFailed = false;
 
-            meterEnabled = true;
+            cfgEnableMeter = Config.Bind<bool>("Rock Meter", "EnableRockMeter", true,
+                "Enable or disable the Rock Meter entirely");
+            meterEnabled = cfgEnableMeter.Value;
             // meterEnabled = false;     // uncomment to disable the meter entirely
+
+            cfgRestartFail = Config.Bind<bool>("Rock Meter", "RestartOnFail", true,
+                "Control whether to force restart on fail.  If false, then gameplay will not be interrupted on fail.");
+            restartOnFail = cfgRestartFail.Value;
             
-            restartOnFail = true;
-            // endSongOnFail = false;    // uncomment to disable quitting on song fail
-            
+            // TO DO: Maybe add config options for these values?
             missDrainAmount = 0.0277;
             hitHealthAmount = 0.0069;  // Nice
             hitSPGainAmount = 0.045;
 
-            // logs = new List<string>();
-            msgSummary = "No stats (this is a bug)";
+            meterPosX = Screen.width * 0.875f;
+            meterPosY = Screen.height * 0.6f;
+            cfgMeterX = Config.Bind<int>("Rock Meter", "MeterPosition_X", (int)meterPosX);
+            cfgMeterY = Config.Bind<int>("Rock Meter", "MeterPosition_Y", (int)meterPosY);
+            isDragging = false;
+            isMouseDown = false;
+
             SceneManager.sceneLoaded += delegate (Scene sc, LoadSceneMode __)
             {
                 if (sc.name == "Gameplay") {
+                    msgSummary = "";
                     currentHealth = defaultHealth;
                     inGame = true;
                     songFailed = false;
+                    restartOnFail = cfgRestartFail.Value;
+                    meterEnabled = cfgEnableMeter.Value;
                 } /*
                 else if (sc.name == "PersistentScene")
                 {
                     // currently not used for this mod ig
-                } */
+                } // */
             };
             SceneManager.sceneUnloaded += delegate (Scene sc)
             {
@@ -595,8 +669,7 @@ namespace RockMeterYARG
 
             Harmony.PatchAll();
         }
-
-        public void LateUpdate()
+        private void LateUpdate()
         {
             if (inGame)
             {
@@ -609,8 +682,32 @@ namespace RockMeterYARG
                 if (dbgTxtObj != null)
                 {
                     dbgTxtTMP = dbgTxtObj.GetComponent<TextMeshProUGUI>();
+                    dbgTxtTMP.text += "<br>Mouse position: " + Mouse.current.position.ReadValue().ToString();
+                    dbgTxtTMP.text += "<br>Dragging meter: " + isDragging.ToString();
                     dbgTxtTMP.text += "<br>Rock Meter:   " + Math.Round(currentHealth * 100).ToString() + "%";
                 }
+                
+            }
+            if (inGame && Mouse.current.leftButton.isPressed)
+            {
+                if (!isMouseDown)
+                {
+                    MouseDownHandle();
+                    isMouseDown = true;
+                }
+                if (isDragging) MouseDragHandle();
+            }
+            if (!Mouse.current.leftButton.isPressed && isMouseDown)
+            {
+                MouseUpHandle();
+
+                isDragging = false;
+                isMouseDown = false;
+            }
+            if (inGame && Mouse.current.rightButton.isPressed)
+            {
+                meterPosX = Screen.width * 0.875f;
+                meterPosY = Screen.height * 0.6f;
             }
         }
         #endregion
