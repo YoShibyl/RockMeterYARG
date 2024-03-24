@@ -113,7 +113,7 @@ namespace RockMeterYARG
 
         private const string MyGUID = "com.yoshibyl.RockMeterYARG";
         private const string PluginName = "RockMeterYARG";
-        private const string VersionString = "0.4.0";
+        private const string VersionString = "0.4.1";
 
         public string LogMsg(object obj)
         {
@@ -267,7 +267,7 @@ namespace RockMeterYARG
                 }
                 else
                 {
-                    Destroy(meterContainer);
+                    Destroy(rockMeterObj);
                     ToastInfo("Song failed!");
                 }
             }
@@ -595,9 +595,9 @@ namespace RockMeterYARG
         public void MouseDownHandle()
         {
             mousePosOnDown = Mouse.current.position.ReadValue();
-            if (inGame && rockMeterImg != null)
+            if (inGame && meterContainer != null)
             {
-                RectTransform rect = rockMeterObj.GetComponent<RectTransform>();
+                RectTransform rect = meterContainer.GetComponentInChildren<RectTransform>();
                 LogMsg("Rect  =" + rect.ToString());
                 LogMsg("Mouse =" + mousePosOnDown.ToString());
                 isDragging = rect.rect.Contains(mousePosOnDown - (Vector2)meterContainer.transform.position);
