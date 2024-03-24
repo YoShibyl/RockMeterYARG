@@ -1,8 +1,8 @@
 # Rock Meter mod for YARG
 
-![rock meter with needle](https://github.com/YoShibyl/RockMeterYARG/assets/18250695/fd2bb7f6-9fcb-4c05-af65-0428e84581ff)
+![rock meter 0 4 0](https://github.com/YoShibyl/RockMeterYARG/assets/18250695/1488687c-1ce1-4a8a-9713-051daeb34bab)
 
-A BepInEx 6 mod for YARG v0.12.1+ that adds a Rock Meter and the ability to fail songs
+A BepInEx 6 mod for YARG v0.12.1+ that adds a Rock Meter, a Combo Meter, and the ability to fail songs
 
 ## Currently tested and working versions
 | Stable   | Nightly (recommended) |
@@ -26,11 +26,19 @@ As this is a modification to the game, bugs may occur and performance may be sli
     - You should see the Rock Meter appear on the right side of the screen, somewhere below the score counter.  If not, then either you didn't properly install the mod, or an update could have broken it.
     - Updates that change `YARG.Core` may hypothetically break the mod, so keep that in mind when updating to a nightly build newer than what is listed above.
 
+### Updating
+To update to a newer nightly build of YARG, simply copy over the files of the update to your portable modded installation.
+
+If an update causes the mod to stop working, please let me know!
+
 ### Uninstalling
 To uninstall the mod, remove the following files and folders from the game's folder:
 - `winhttp.dll`
 - `doorstop_config.ini` *(optional)*
 - The `BepInEx` folder *(optional)*
+
+## Usage
+This mod has its own configuration file, located at `BepInEx/config/com.yoshibyl.RockMeterYARG.cfg`.  Moving the Rock Meter's position will automatically save the position to the config.  Additionally, you can change whether or not to stop the song on fail, as well as enable/disable the Rock Meter and/or the Combo Meter, through the config file.
 
 ## Credits and thanks
 - EliteAsian123 : Created YARG
