@@ -113,7 +113,7 @@ namespace RockMeterYARG
 
         private const string MyGUID = "com.yoshibyl.RockMeterYARG";
         private const string PluginName = "RockMeterYARG";
-        private const string VersionString = "0.3.1";
+        private const string VersionString = "0.4.0";
 
         public string LogMsg(object obj)
         {
@@ -127,8 +127,6 @@ namespace RockMeterYARG
         Assembly yargMainAsm;   // `Assembly-CSharp.dll` for reflection
         Assembly yargCoreAsm;   // `YARG.Core.dll` just in case
 
-        public List<string> logs;
-        public bool didLoad;
         public bool practice;
         public bool replay;
         public GameObject gmo;      // Game Manager object
@@ -141,6 +139,7 @@ namespace RockMeterYARG
         public bool inGame;
         public bool restartOnFail;
         public bool songFailed;
+        public bool showCombo;
         public double defaultHealth = 0.5;
         public double missDrainAmount;  // Amount to take from health on note miss or overstrum/overhit
         public double hitHealthAmount;  // Amount to add to health on note hit usually
@@ -392,6 +391,7 @@ namespace RockMeterYARG
 
         public void DrainHealth()
         {
+            SetComboMeter(0);
             double oldHealth = currentHealth;
             if (!practice && !replay)
             {
@@ -402,6 +402,7 @@ namespace RockMeterYARG
         }
         public void AddHealth()
         {
+            SetComboMeter(statsList[0].Combo);
             double oldHealth = currentHealth;
             if (!practice && !replay && currentHealth < 1)
             {
@@ -494,6 +495,19 @@ namespace RockMeterYARG
             meterPosX = x;
             meterPosY = y;
         }
+
+        public void SetComboMeter(int streak = 0)
+        {
+            if (comboTxt != null)
+            {
+                string comboStr = streak.ToString("000000");
+                int streakThreshold = 30;
+                if (streak >= streakThreshold) comboStr = comboStr.Replace(streak.ToString(), "</color>" + streak);
+                if (streak > 999999) comboStr = "</color><color=#DDDD99>??????</color>";
+                comboTxt.text = "<size=20><br><br><align=center><mspace=0.55em><color=#00000000>" + comboStr;
+            }
+        }
+
         public void UpdateConfig()
         {
             cfgMeterX.SetSerializedValue(((int)meterPosX).ToString());
@@ -514,43 +528,65 @@ namespace RockMeterYARG
             statsList = GetAllStats();
             // get hud container
             hudObj = GameObject.Find("Canvas/Main HUD Container");
-            if (hudObj != null && meterObj == null && meterEnabled && !practice && !replay)
+            if (hudObj != null && meterContainer == null && !practice && !replay)
             {
                 string meterAsset = Path.Combine(Paths.PluginPath, "assets", "meter.png");
                 string needleAsset = Path.Combine(Paths.PluginPath, "assets", "needle.png");
-
+                string comboAsset = Path.Combine(Paths.PluginPath, "assets", "combometer.png");
+                
                 meterContainer = new GameObject("Health Meter Container");
                 meterContainer.transform.SetParent(hudObj.transform, false);
-                meterObj = new GameObject("Health Meter");
-                meterObj.transform.SetParent(meterContainer.transform, false);
-                needleObj = new GameObject("Health Needle");
-                needleObj.transform.SetParent(meterContainer.transform, false);
-                meterContainer.transform.localScale = new Vector3(2,2,1);
+                meterContainer.transform.localScale = new Vector3(2, 2, 1);
+
+                if (meterEnabled)
+                {
+                    rockMeterObj = new GameObject("Health Meter");
+                    rockMeterObj.transform.SetParent(meterContainer.transform, false);
+                    needleObj = new GameObject("Health Needle");
+                    needleObj.transform.SetParent(meterContainer.transform, false);
+                    if (File.Exists(meterAsset) && File.Exists(needleAsset))
+                    {
+                        rockMeterImg = rockMeterObj.AddComponent<RawImage>();
+                        needleImg = needleObj.AddComponent<RawImage>();
+                        rockMeterImg.texture = LoadPNG(meterAsset);
+                        needleImg.texture = LoadPNG(needleAsset);
+                    }
+                    else
+                    {
+                        ToastWarning("Couldn't load assets for the rock meter.");
+                    }
+
+                    needleObj.transform.eulerAngles = new Vector3(0, 0, -90);
+                }
 
                 SetMeterPos(cfgMeterX.Value, cfgMeterY.Value);
                 
-                if (File.Exists(meterAsset) && File.Exists(needleAsset))
+                // Initialize combo meter, if enabled
+                if (File.Exists(comboAsset) && showCombo)
                 {
-                    meterImg = meterObj.AddComponent<RawImage>();
-                    needleImg = needleObj.AddComponent<RawImage>();
-                    meterImg.texture = LoadPNG(meterAsset);
-                    needleImg.texture = LoadPNG(needleAsset);
+                    comboMeterObj = new GameObject("Combo Meter");
+                    comboMeterObj.transform.SetParent(meterContainer.transform, false);
+                    comboTxtObj = new GameObject("Combo Text");
+                    comboTxtObj.transform.SetParent(meterContainer.transform, false);
+
+                    comboMeterImg = comboMeterObj.AddComponent<RawImage>();
+                    comboMeterImg.texture = LoadPNG(comboAsset);
+                    comboTxt = comboTxtObj.AddComponent<TextMeshProUGUI>();
                 }
-                else
-                {
-                    ToastWarning("Couldn't load assets for the rock meter.");
-                }
-                needleObj.transform.eulerAngles = new Vector3(0,0,-90);
             }
         }
 
         // rock meter objects
         public GameObject hudObj;
         public GameObject meterContainer;
-        public GameObject meterObj;
+        public GameObject rockMeterObj;
         public GameObject needleObj;
-        public RawImage meterImg;
+        public GameObject comboMeterObj;
+        public GameObject comboTxtObj;
+        public TextMeshProUGUI comboTxt;
+        public RawImage rockMeterImg;
         public RawImage needleImg;
+        public RawImage comboMeterImg;
 
         public bool meterEnabled;
 
@@ -559,9 +595,9 @@ namespace RockMeterYARG
         public void MouseDownHandle()
         {
             mousePosOnDown = Mouse.current.position.ReadValue();
-            if (inGame && meterImg != null)
+            if (inGame && rockMeterImg != null)
             {
-                RectTransform rect = meterObj.GetComponent<RectTransform>();
+                RectTransform rect = rockMeterObj.GetComponent<RectTransform>();
                 LogMsg("Rect  =" + rect.ToString());
                 LogMsg("Mouse =" + mousePosOnDown.ToString());
                 isDragging = rect.rect.Contains(mousePosOnDown - (Vector2)meterContainer.transform.position);
@@ -590,6 +626,7 @@ namespace RockMeterYARG
         public ConfigEntry<int> cfgMeterY;
         public ConfigEntry<bool> cfgRestartFail;
         public ConfigEntry<bool> cfgEnableMeter;
+        public ConfigEntry<bool> cfgShowComboMeter;
 
         #region Unity Methods
         private void Start()
@@ -622,6 +659,10 @@ namespace RockMeterYARG
             cfgRestartFail = Config.Bind<bool>("Rock Meter", "RestartOnFail", true,
                 "Control whether to force restart on fail.  If false, then gameplay will not be interrupted on fail.");
             restartOnFail = cfgRestartFail.Value;
+
+            cfgShowComboMeter = Config.Bind<bool>("Combo Meter", "EnableComboMeter", true,
+                "Enable or disable the combo meter");
+            showCombo = cfgShowComboMeter.Value;
             
             // TO DO: Maybe add config options for these values?
             missDrainAmount = 0.0277;
@@ -681,7 +722,6 @@ namespace RockMeterYARG
                     dbgTxtTMP.text += "<br>Dragging meter: " + isDragging.ToString();
                     dbgTxtTMP.text += "<br>Rock Meter:   " + Math.Round(currentHealth * 100).ToString() + "%";
                 }
-                
             }
             if (inGame && Mouse.current.leftButton.isPressed)
             {
