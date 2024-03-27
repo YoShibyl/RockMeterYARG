@@ -78,7 +78,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
         [HarmonyPostfix]
         static void Postfix()
         {
-            RockMeterYARG.Instance.InitHealthMeter();
+            RockMeterYARG.Instance.InitMeters();
         }
     }
     [HarmonyPatch(typeName: "YARG.Gameplay.GameManager", methodName: "Resume")]
@@ -112,7 +112,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
 
         private const string MyGUID = "com.yoshibyl.RockMeterYARG";
         private const string PluginName = "RockMeterYARG";
-        private const string VersionString = "0.6.0";
+        private const string VersionString = "0.6.1";
 
         public string LogMsg(object obj)
         {
@@ -210,6 +210,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
             
         }
 #endif
+        
         public Color ChangeColor(string colorSetting, Color value)
         {
             switch(colorSetting)
@@ -233,7 +234,6 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
                     break;
             }
             UpdateConfig();
-            doOpenConfig = true;
             return value;
         }
         public void ToggleBoolConfig(string param)
@@ -268,7 +268,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
         {
             dmo = FindAndSetActive("Dialog Container");
             object ret = null;
-
+            colorPickerShowing = true;
             if (dmo != null)
             {
                 dialogClearMethod.Invoke(dmo.GetComponent("YARG.Menu.Persistent.DialogManager"), null);
@@ -278,6 +278,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
                 };
                 List<object> argz = new List<object> { c, action };
                 ret = dialogColorMethod.Invoke(dmo.GetComponent("YARG.Menu.Persistent.DialogManager"), argz.ToArray());
+                currentDialog = ret;
                 return ret;
             }
             else
@@ -401,7 +402,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
                 }
                 else
                 {
-                    Destroy(rockMeterObj);
+                    Destroy(meterContainer);
                     ToastInfo("Player " + (index+1).ToString() + " failed!<br>(" + causeOfFail + ")");
                 }
             }
@@ -518,10 +519,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
             {
                 RestartSong(false);
             }
-            if (!inGame && doOpenConfig)
-            {
-                // configMenuObj = OpenConfigMenu();
-            }
+            currentDialog = null;
         }
         
         public void DrainHealth(object invoker, string cause = "")
@@ -665,7 +663,8 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
                 x = Screen.width * 0.875f;
                 y = Screen.height * 0.6f;
             }
-            meterContainer.transform.position = new Vector3(x,y,0);
+            if (meterContainer != null)
+                meterContainer.transform.position = new Vector3(x,y,0);
             meterPosX = x;
             meterPosY = y;
         }
@@ -695,7 +694,8 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
                 x = Screen.width * 0.875f;
                 y = Screen.height * 0.53f;
             }
-            comboContainer.transform.position = new Vector3(x, y, 0);
+            if (comboContainer != null)
+                comboContainer.transform.position = new Vector3(x, y, 0);
             comboPosX = x;
             comboPosY = y;
         }
@@ -723,7 +723,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
             cfgComboMeterColorHex.SetSerializedValue(comboMeterRGB);
         }
 
-        public void InitHealthMeter()
+        public void InitMeters()
         {
             // get game manager
             if (gmo == null)
@@ -893,7 +893,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
             RefreshColors();
             r = Dialog("Rock Meter Config : " + VersionString, ParseConfigMenuText());
             configMenuTMP = GameObject.Find("Persistent Canvas/Dialog Container/MessageDialog(Clone)/Base/Content/Message")?.GetComponent<TextMeshProUGUI>();
-            
+            currentDialog = r;
             isConfigShowing = true;
             doOpenConfig = false;
             return r;
@@ -905,7 +905,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
         public void MouseDownHandle()
         {
             mousePosOnDown = Mouse.current.position.ReadValue();
-            if (inGame && (meterContainer != null || comboContainer != null))
+            if (inGame)
             {
                 RectTransform rectMeter = null;
                 RectTransform rectCombo = null;
@@ -913,12 +913,11 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
                 if (meterContainer != null)
                 {
                     rectMeter = meterContainer.GetComponentInChildren<RectTransform>();
-                    rectCombo = comboContainer.GetComponentInChildren<RectTransform>();
-
                     isDraggingHealth = rectMeter.rect.Contains(mousePosOnDown - (Vector2)meterContainer.transform.position);
                 }
                 if (!isDraggingHealth)
                 {
+                    rectCombo = comboContainer.GetComponentInChildren<RectTransform>();
                     isDraggingCombo = rectCombo.rect.Contains(mousePosOnDown - (Vector2)comboContainer.transform.position);
                     dragDiff_Combo = mousePosOnDown - (Vector2)comboContainer.transform.position;
                 }
@@ -961,22 +960,24 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
                     {
                         RefreshColors();
                         configMenuObj = OpenConfigMenu();
-                        
+                        currentDialog = configMenuObj;
                     }
-                    
                 }
                 else if (isConfigShowing)
                 {
                     switch(linkID)
                     {
                         case "ComboTextColor":
-                            ShowColorPicker("ComboTextColor", comboTextColor);
+                            colorPicker = ShowColorPicker("ComboTextColor", comboTextColor);
+                            currentDialog = colorPicker;
                             break;
                         case "ComboEdgeColor":
-                            ShowColorPicker("ComboEdgeColor", comboEdgeColor);
+                            colorPicker = ShowColorPicker("ComboEdgeColor", comboEdgeColor);
+                            currentDialog = colorPicker;
                             break;
                         case "ComboMeterColor":
-                            ShowColorPicker("ComboMeterColor", comboMeterColor);
+                            colorPicker = ShowColorPicker("ComboMeterColor", comboMeterColor);
+                            currentDialog = colorPicker;
                             break;
                         case "ComboMeterToggle":
                             ToggleBoolConfig("EnableComboMeter");
@@ -1035,6 +1036,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
         public TextMeshProUGUI dialogTMP;
         public TextMeshProUGUI watermarkTMP;
         public object configMenuObj;
+        public bool colorPickerShowing;
 
         public string ToHexString_NoTag(Color c) => String.Format("{0:X2}{1:X2}{2:X2}", (int)(c.r * 255), (int)(c.g * 255), (int)(c.b * 255));
         public Color FromHexString_NoTag(string hex) => new Color(
@@ -1120,6 +1122,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
             isLegacyComboMeter = false;
             isConfigShowing = false;
             doOpenConfig = false;
+            colorPickerShowing = false;
 
             SceneManager.sceneLoaded += delegate (Scene sc, LoadSceneMode __)
             {
@@ -1154,6 +1157,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
                     meterContainer = null;
                     practice = false;
                     replay = false;
+                    currentDialog = null;
                 }
             };
 
@@ -1164,9 +1168,9 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
             if (watermarkTMP == null)
             {
                 watermarkTMP = FindAndSetActive("Watermark Container").GetComponentInChildren<TextMeshProUGUI>();
-                if (watermarkTMP.text.Contains("YARG v1.22.33b")) // Detect if we're on the Stable Build
+                gvo = GameObject.Find("Global Variables");
+                if (watermarkTMP.text.Contains("YARG v1.22.33b") && gvo != null) // Detect if we're on the Stable Build
                 {
-                    gvo = GameObject.Find("Global Variables");
                     string versionTxt = (string)gvType.GetField("CURRENT_VERSION").GetValue(gvo.GetComponent("YARG.GlobalVariables"));
                     watermarkTMP.text = String.Format("<b>YARG {0}</b>", versionTxt);
                 }
@@ -1221,6 +1225,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
                 SetHealthMeterPos(Screen.width * 0.875f, Screen.height * 0.6f);
                 SetComboPos(Screen.width * 0.875f, Screen.height * 0.53f);
                 isDraggingHealth = false;
+                isDraggingCombo = false;
                 isMouseDown = false;
                 UpdateConfig();
             }
@@ -1255,9 +1260,14 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
                     isConfigShowing = false;
                 }
             }
-            else if (doOpenConfig)
+            else if (!inGame && colorPickerShowing)
             {
-                configMenuObj = OpenConfigMenu();
+                if (currentDialog == null)
+                {
+                    configMenuObj = OpenConfigMenu();
+                    currentDialog = configMenuObj;
+                    colorPickerShowing = false;
+                }
             }
         }
         #endregion
