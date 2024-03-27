@@ -16,9 +16,8 @@ using System.Linq;
 using YARG.Core.Engine.Guitar;
 using YARG.Core.Engine.Drums;
 
-namespace RockMeterYARG
+namespace RockMeterYARG         // TO DO:  Implement configurable combo meter colors
 {
-    
     [HarmonyPatch(typeName:"YARG.Core.Engine.Guitar.GuitarEngine", methodName: "MissNote")]
     public class FiveFretMissNoteHandler
     {
@@ -77,7 +76,7 @@ namespace RockMeterYARG
     public class OnGameLoad
     {
         [HarmonyPostfix]
-        static void Postfix(ref object __instance)
+        static void Postfix()
         {
             RockMeterYARG.Instance.InitHealthMeter();
         }
@@ -86,7 +85,7 @@ namespace RockMeterYARG
     public class OnUnpause
     {
         [HarmonyPostfix]
-        static void Postfix(ref object __instance)
+        static void Postfix()
         {
             RockMeterYARG.Instance.UnpauseHandler();
         }
@@ -95,9 +94,9 @@ namespace RockMeterYARG
     public class OnDialogClose
     {
         [HarmonyPostfix]
-        static void Postfix(ref object __instance)
+        static void Postfix()
         {
-            RockMeterYARG.Instance.FailConfirmHandler();
+            RockMeterYARG.Instance.ClearDialogHandler();
         }
     }
     [BepInPlugin(MyGUID, PluginName, VersionString)]
@@ -113,7 +112,7 @@ namespace RockMeterYARG
 
         private const string MyGUID = "com.yoshibyl.RockMeterYARG";
         private const string PluginName = "RockMeterYARG";
-        private const string VersionString = "0.5.0";
+        private const string VersionString = "0.6.0";
 
         public string LogMsg(object obj)
         {
@@ -132,6 +131,7 @@ namespace RockMeterYARG
         public GameObject gmo;      // Game Manager object
         public GameObject tmo;      // Toast Manager object
         public GameObject dmo;      // Dialog Manager object
+        public GameObject gvo;      // Global Variables object
         public object currentDialog;
         public GameObject pmm;
         public float timerDebugText;
@@ -149,8 +149,12 @@ namespace RockMeterYARG
         public Vector2 mousePosOnDown;
         public float meterPosX;
         public float meterPosY;
-        public Vector2 dragDiff;
-        public bool isDragging;
+        public float comboPosX;
+        public float comboPosY;
+        public Vector2 dragDiff_Health;
+        public Vector2 dragDiff_Combo;
+        public bool isDraggingHealth;
+        public bool isDraggingCombo;
         public bool isMouseDown;
 
         public List<UnityEngine.Object> players;
@@ -167,13 +171,14 @@ namespace RockMeterYARG
         public GameObject dbgTxtObj;
         public TextMeshProUGUI dbgTxtTMP;
 
+        public Type gvType;             // Global Variables
         public Type gmType;             // Game manager
         public Type basePlayerType;     // Base Player
         public Type guitarType;         // Five Fret Player
         public Type drumsType;          // Drums Player
         public Type trackPlayerType;    // TrackPlayer
         public Type tmType;             // Toast notification manager
-        public Type pmmType;            // Pause menu manager (for restarting song) (soon™)
+        public Type pmmType;            // Pause menu manager (for restarting song)
         public Type dmType;             // Dialog manager
 
         public MethodInfo quitMeth; // Don't do drugs, folks! LMAO
@@ -181,6 +186,7 @@ namespace RockMeterYARG
         public MethodInfo pauseMethod;
         public MethodInfo dialogShowMethod;
         public MethodInfo dialogClearMethod;
+        public MethodInfo dialogColorMethod;
         public MethodInfo toastMethod_Info;
         public MethodInfo toastMethod_Warn;
         // TO DO: Hook into other toast notification types (even tho we might not use them)
@@ -198,7 +204,87 @@ namespace RockMeterYARG
         {
             Screen.SetResolution(1920, 1080, false);
         }
+
+        public void Dbg_ShowColorDialog()
+        {
+            
+        }
 #endif
+        public Color ChangeColor(string colorSetting, Color value)
+        {
+            switch(colorSetting)
+            {
+                case "ComboTextColor":
+                    comboTextColor = value;
+                    comboTextRGB = ToHexString_NoTag(value);
+                    cfgComboTextColorHex.SetSerializedValue(comboTextRGB);
+                    break;
+                case "ComboEdgeColor":
+                    comboEdgeColor = value;
+                    comboEdgeRGB = ToHexString_NoTag(value);
+                    cfgComboEdgeColorHex.SetSerializedValue(comboEdgeRGB);
+                    break;
+                case "ComboMeterColor":
+                    comboMeterColor = value;
+                    comboMeterRGB = ToHexString_NoTag(value);
+                    cfgComboMeterColorHex.SetSerializedValue(comboMeterRGB);
+                    break;
+                default:
+                    break;
+            }
+            UpdateConfig();
+            doOpenConfig = true;
+            return value;
+        }
+        public void ToggleBoolConfig(string param)
+        {
+            bool val;
+            switch(param)
+            {
+                case "EnableRockMeter":
+                    val = !cfgEnableMeter.Value;
+                    meterEnabled = val;
+                    if (val) cfgEnableMeter.SetSerializedValue("true");
+                    else cfgEnableMeter.SetSerializedValue("false");
+                    break;
+                case "RestartOnFail":
+                    val = !cfgRestartFail.Value;
+                    restartOnFail = val;
+                    if (val) cfgRestartFail.SetSerializedValue("true");
+                    else cfgRestartFail.SetSerializedValue("false");
+                    break;
+                case "EnableComboMeter":
+                    val = !cfgShowComboMeter.Value;
+                    cfgShowComboMeter.Value = val;
+                    if (val) cfgShowComboMeter.SetSerializedValue("true");
+                    else cfgShowComboMeter.SetSerializedValue("false");
+                    break;
+                default:
+                    break;
+            }
+            UpdateConfig();
+        }
+        public object ShowColorPicker(string colorSetting, Color c)
+        {
+            dmo = FindAndSetActive("Dialog Container");
+            object ret = null;
+
+            if (dmo != null)
+            {
+                dialogClearMethod.Invoke(dmo.GetComponent("YARG.Menu.Persistent.DialogManager"), null);
+                Action<Color> action = delegate (Color _)
+                {
+                    ChangeColor(colorSetting, _);
+                };
+                List<object> argz = new List<object> { c, action };
+                ret = dialogColorMethod.Invoke(dmo.GetComponent("YARG.Menu.Persistent.DialogManager"), argz.ToArray());
+                return ret;
+            }
+            else
+            {
+                return null;
+            }
+        }
         public T GetGameManagerProperty<T>(string property) where T : Type
         {
             if (gmo != null)
@@ -258,6 +344,7 @@ namespace RockMeterYARG
             object ret = null;
             if (dmo != null)
             {
+                if (!inGame) dialogClearMethod.Invoke(dmo.GetComponent("YARG.Menu.Persistent.DialogManager"), null);
                 List<string> argz = new List<string> { title, msg };
                 ret = dialogShowMethod.Invoke(dmo.GetComponent("YARG.Menu.Persistent.DialogManager"), argz.ToArray());
                 return ret;
@@ -272,7 +359,7 @@ namespace RockMeterYARG
         {
             statsList = GetAllStats();
             int index = statsList.IndexOf(s);
-            
+            restartOnFail = cfgRestartFail.Value;
             if (meterEnabled && !practice)
             {
                 songFailed = true;
@@ -413,6 +500,7 @@ namespace RockMeterYARG
 
         public bool UnpauseHandler()
         {
+            statsList = GetAllStats();
             if (gmo != null)
             {
                 object ret = gmType.GetProperty("Paused").GetValue(gmo.GetComponent("YARG.Gameplay.GameManager"));
@@ -424,11 +512,15 @@ namespace RockMeterYARG
             }
             return false;
         }
-        public void FailConfirmHandler()
+        public void ClearDialogHandler()
         {
             if (songFailed && restartOnFail && statsList.Count == 1)
             {
                 RestartSong(false);
+            }
+            if (!inGame && doOpenConfig)
+            {
+                // configMenuObj = OpenConfigMenu();
             }
         }
         
@@ -566,7 +658,7 @@ namespace RockMeterYARG
             }
         }
 
-        public void SetMeterPos(float x, float y)
+        public void SetHealthMeterPos(float x, float y)
         {
             if (x > Screen.width || x < 0 || y > Screen.height || y < 0)
             { // Check if the meter is off-screen
@@ -588,10 +680,34 @@ namespace RockMeterYARG
                 {
                     streakThreshold = 1;
                 }
-                if (streak >= streakThreshold) comboStr = comboStr.Replace(streak.ToString(), "</color>" + streak);
-                else if (streak > 999999) comboStr = "</color><color=#DDDD99>??????</color>";
-                comboTxt.text = "<size=20><br><br><align=center><mspace=0.55em><color=#00000000>" + comboStr;
+                if (streak >= streakThreshold) comboStr = comboStr.Replace(streak.ToString(), "</color><color=#" + ToHexString_NoTag(comboTextColor) + ">" + streak);
+                else if (streak > 999999) comboStr = "</color>??????";
+                if (isLegacyComboMeter) comboTxt.text = "<size=20><br><br><align=center><b><mspace=0.55em><color=#00000000>" + comboStr;
+                else comboTxt.text = "<size=20><align=center><b><mspace=0.55em><color=#00000000>" + comboStr;
+
+                if (comboTxt.verticalAlignment != VerticalAlignmentOptions.Middle && !isLegacyComboMeter) comboTxt.verticalAlignment = VerticalAlignmentOptions.Middle;
             }
+        }
+        public void SetComboPos(float x, float y)
+        {
+            if (x > Screen.width || x < 0 || y > Screen.height || y < 0)
+            { // Check if the meter is off-screen
+                x = Screen.width * 0.875f;
+                y = Screen.height * 0.53f;
+            }
+            comboContainer.transform.position = new Vector3(x, y, 0);
+            comboPosX = x;
+            comboPosY = y;
+        }
+        public void RefreshColors()
+        {
+            comboMeterRGB = cfgComboMeterColorHex.GetSerializedValue().ToUpper();
+            comboEdgeRGB = cfgComboEdgeColorHex.GetSerializedValue().ToUpper();
+            comboTextRGB = cfgComboTextColorHex.GetSerializedValue().ToUpper();
+
+            comboMeterColor = FromHexString_NoTag(comboMeterRGB);
+            comboEdgeColor = FromHexString_NoTag(comboEdgeRGB);
+            comboTextColor = FromHexString_NoTag(comboTextRGB);
         }
 
         public void UpdateConfig()
@@ -600,6 +716,11 @@ namespace RockMeterYARG
             cfgMeterY.SetSerializedValue(((int)meterPosY).ToString());
             cfgEnableMeter.SetSerializedValue(meterEnabled.ToString());
             cfgRestartFail.SetSerializedValue(restartOnFail.ToString());
+            cfgComboX.SetSerializedValue(((int)comboPosX).ToString());
+            cfgComboY.SetSerializedValue(((int)comboPosY).ToString());
+            cfgComboTextColorHex.SetSerializedValue(comboTextRGB);
+            cfgComboEdgeColorHex.SetSerializedValue(comboEdgeRGB);
+            cfgComboMeterColorHex.SetSerializedValue(comboMeterRGB);
         }
 
         public void InitHealthMeter()
@@ -612,14 +733,20 @@ namespace RockMeterYARG
             practice = IsPractice();
             replay = IsReplay();
             statsList = GetAllStats();
+            RefreshColors();
+            
             // get hud container
             hudObj = GameObject.Find("Canvas/Main HUD Container");
+
             if (hudObj != null && meterContainer == null)
             {
                 string meterAsset = Path.Combine(Paths.PluginPath, "assets", "meter.png");
                 string needleAsset = Path.Combine(Paths.PluginPath, "assets", "needle.png");
-                string comboAsset = Path.Combine(Paths.PluginPath, "assets", "combometer.png");
-                
+                string comboOldAsset = Path.Combine(Paths.PluginPath, "assets", "combometer.png");
+                string comboBgAsset = Path.Combine(Paths.PluginPath, "assets", "combo_bg.png");
+                string comboEdgeAsset = Path.Combine(Paths.PluginPath, "assets", "combo_edge.png");
+                string comboAsset = Path.Combine(Paths.PluginPath, "assets", "combo_meter.png");
+
                 meterContainer = new GameObject("Health Meter Container");
                 meterContainer.transform.SetParent(hudObj.transform, false);
                 meterContainer.transform.localScale = new Vector3(2, 2, 1);
@@ -645,19 +772,67 @@ namespace RockMeterYARG
                     needleObj.transform.eulerAngles = new Vector3(0, 0, -90);
                 }
 
-                SetMeterPos(cfgMeterX.Value, cfgMeterY.Value);
+                SetHealthMeterPos(cfgMeterX.Value, cfgMeterY.Value);
                 
                 // Initialize combo meter, if enabled
-                if (File.Exists(comboAsset) && showCombo)
+                if (showCombo)
                 {
-                    comboMeterObj = new GameObject("Combo Meter");
-                    comboMeterObj.transform.SetParent(meterContainer.transform, false);
-                    comboTxtObj = new GameObject("Combo Text");
-                    comboTxtObj.transform.SetParent(meterContainer.transform, false);
+                    comboContainer = new GameObject("Streak Counter Container");
+                    comboContainer.transform.SetParent(hudObj.transform, false);
+                    comboContainer.transform.localScale = new Vector3(2, 2, 1);
+                    isLegacyComboMeter = false;
+                    if (File.Exists(comboBgAsset) && File.Exists(comboEdgeAsset))
+                    {
+                        comboMeterObj = new GameObject("Streak Background");
+                        comboMeterObj.transform.SetParent(comboContainer.transform, false);
+                        comboEdgeObj = new GameObject("Streak Counter Edge");
+                        comboEdgeObj.transform.SetParent(comboContainer.transform, false);
+                        comboTxtObj = new GameObject("Streak Text");
+                        comboTxtObj.transform.SetParent(comboContainer.transform, false);
 
-                    comboMeterImg = comboMeterObj.AddComponent<RawImage>();
-                    comboMeterImg.texture = LoadPNG(comboAsset);
-                    comboTxt = comboTxtObj.AddComponent<TextMeshProUGUI>();
+                        comboMeterImg = comboMeterObj.AddComponent<RawImage>();
+                        comboMeterImg.texture = LoadPNG(comboBgAsset);
+                        comboMeterImg.color = comboMeterColor;
+                        comboEdgeImg = comboEdgeObj.AddComponent<RawImage>();
+                        comboEdgeImg.texture = LoadPNG(comboEdgeAsset);
+                        comboEdgeImg.color = comboEdgeColor;
+                        comboTxt = comboTxtObj.AddComponent<TextMeshProUGUI>();
+
+                        SetComboPos(comboPosX, comboPosY);
+                    }
+                    else if (File.Exists(comboAsset))
+                    {
+                        comboMeterObj = new GameObject("Streak Background");
+                        comboMeterObj.transform.SetParent(comboContainer.transform, false);
+                        comboTxtObj = new GameObject("Streak Text");
+                        comboTxtObj.transform.SetParent(comboContainer.transform, false);
+
+                        comboMeterImg = comboMeterObj.AddComponent<RawImage>();
+                        comboMeterImg.texture = LoadPNG(comboAsset);
+                        comboMeterImg.color = comboMeterColor;
+                        comboTxt = comboTxtObj.AddComponent<TextMeshProUGUI>();
+
+                        SetComboPos(comboPosX, comboPosY);
+                    }
+                    else if (File.Exists(comboOldAsset))
+                    {
+                        isLegacyComboMeter = true;
+                        Destroy(comboContainer);
+
+                        comboMeterObj = new GameObject("Streak Background");
+                        comboMeterObj.transform.SetParent(meterContainer.transform, false);
+                        comboTxtObj = new GameObject("Streak Text");
+                        comboTxtObj.transform.SetParent(meterContainer.transform, false);
+
+                        comboMeterImg = comboMeterObj.AddComponent<RawImage>();
+                        comboMeterImg.texture = LoadPNG(comboOldAsset);
+                        comboTxt = comboTxtObj.AddComponent<TextMeshProUGUI>();
+                    }
+                    else
+                    {
+                        showCombo = false;  // Don't show combo if assets can't be loaded
+                        Destroy(comboContainer);
+                    }
                 }
             }
         }
@@ -667,52 +842,205 @@ namespace RockMeterYARG
         public GameObject meterContainer;
         public GameObject rockMeterObj;
         public GameObject needleObj;
+        public GameObject comboContainer;
         public GameObject comboMeterObj;
+        public GameObject comboEdgeObj;
         public GameObject comboTxtObj;
         public TextMeshProUGUI comboTxt;
         public RawImage rockMeterImg;
         public RawImage needleImg;
         public RawImage comboMeterImg;
-
+        public RawImage comboEdgeImg;
+        public bool isLegacyComboMeter;
         public bool meterEnabled;
 
+        // Config menu stuff
+        public TextMeshProUGUI configMenuTMP;
+        public bool isConfigShowing;
+        public bool doOpenConfig;
+        public string OnOffStr(bool boolean, bool colorCodeIt = true)
+        {
+            string r = "";
+            if (colorCodeIt)
+            {
+                if (boolean) r = "<color=#00FF00>ON</color>";
+                else r = "<color=#FF0000>OFF</color>";
+            }
+            else
+            {
+                if (boolean) r = "ON";
+                else r = "OFF";
+            }
+            return r;
+        }
+        public string ParseConfigMenuText()
+        {
+            string options = "<i>Click an option below to configure it!</i><br><br>";
+            // The "<color=#00000000>.</color>" is a transparent dot used for breaking up the underlines, otherwise they connect??
+            options += "<b><size=40><u>COMBO METER</u><space=9em><color=#00000000>.</color><u>ROCK METER</u></size></b>";
+            options += String.Format("<br><align=left><pos=10%><link=\"ComboMeterToggle\"><b>Enabled:<pos=25%>{0}<b></link>", OnOffStr(cfgShowComboMeter.Value));
+            options += String.Format("<pos=60%><link=\"RockMeterToggle\">Enabled:<pos=80%>{0}</link>", OnOffStr(meterEnabled));
+            options += String.Format("<br><pos=10%><link=\"ComboMeterColor\"><b>Meter Color<pos=25%>#{0} <pos=45%>(<color=#{0}><mspace=0.5em>██</mspace></color><b>)</link>", comboMeterRGB);
+            options += String.Format("<pos=60%><link=\"SongFailToggle\">Restart on Fail:<pos=80%>{0}</link>", OnOffStr(restartOnFail));
+            options += String.Format("<br><pos=10%><link=\"ComboTextColor\"><b>Text Color<pos=25%>#{0} <pos=45%>(<color=#{0}><mspace=0.5em>██</mspace></color><b>)</link>", comboTextRGB);
+            options += String.Format("<br><pos=10%><link=\"ComboEdgeColor\"><b>Edge Color<pos=25%>#{0} <pos=45%>(<color=#{0}><mspace=0.5em>██</mspace></color><b>)</link>", comboEdgeRGB);
+            options += String.Format("<br><br><pos=10%><link=\"ResetComboColors\"><color=#FF6666>RESET COLORS</color></link>");
+            return options;
+        }
+        public object OpenConfigMenu()
+        {
+            object r;
+            RefreshColors();
+            r = Dialog("Rock Meter Config : " + VersionString, ParseConfigMenuText());
+            configMenuTMP = GameObject.Find("Persistent Canvas/Dialog Container/MessageDialog(Clone)/Base/Content/Message")?.GetComponent<TextMeshProUGUI>();
+            
+            isConfigShowing = true;
+            doOpenConfig = false;
+            return r;
+        }
         #region Mouse Handlers
         // Handlers for rock meter dragging with mouse
+        public string linkID;
+        public object colorPicker;
         public void MouseDownHandle()
         {
             mousePosOnDown = Mouse.current.position.ReadValue();
-            if (inGame && meterContainer != null)
+            if (inGame && (meterContainer != null || comboContainer != null))
             {
-                RectTransform rect = meterContainer.GetComponentInChildren<RectTransform>();
-                // LogMsg("Rect  =" + rect.ToString());
-                // LogMsg("Mouse =" + mousePosOnDown.ToString());
-                isDragging = rect.rect.Contains(mousePosOnDown - (Vector2)meterContainer.transform.position);
-                dragDiff = mousePosOnDown - (Vector2)meterContainer.transform.position;
+                RectTransform rectMeter = null;
+                RectTransform rectCombo = null;
+                isDraggingHealth = false;
+                if (meterContainer != null)
+                {
+                    rectMeter = meterContainer.GetComponentInChildren<RectTransform>();
+                    rectCombo = comboContainer.GetComponentInChildren<RectTransform>();
+
+                    isDraggingHealth = rectMeter.rect.Contains(mousePosOnDown - (Vector2)meterContainer.transform.position);
+                }
+                if (!isDraggingHealth)
+                {
+                    isDraggingCombo = rectCombo.rect.Contains(mousePosOnDown - (Vector2)comboContainer.transform.position);
+                    dragDiff_Combo = mousePosOnDown - (Vector2)comboContainer.transform.position;
+                }
+                else
+                {
+                    dragDiff_Health = mousePosOnDown - (Vector2)meterContainer.transform.position;
+                }
             }
         }
         public void MouseDragHandle()
         {
-            if (meterContainer != null)
+            if (meterContainer != null && isDraggingHealth)
             {
-                meterContainer.transform.position = (Vector3)Mouse.current.position.value - (Vector3)dragDiff;
+                meterContainer.transform.position = (Vector3)Mouse.current.position.value - (Vector3)dragDiff_Health;
+            }
+            else if (comboContainer != null && isDraggingCombo)
+            {
+                comboContainer.transform.position = (Vector3)Mouse.current.position.value - (Vector3)dragDiff_Combo;
             }
         }
         public void MouseUpHandle()
         {
-            if (inGame && meterContainer != null)
+            if (inGame && meterContainer != null && isDraggingHealth)
             {
                 Vector2 pos = meterContainer.transform.position;
-                SetMeterPos(pos.x, pos.y);
+                SetHealthMeterPos(pos.x, pos.y);
                 UpdateConfig();
             }
+            else if (inGame && comboContainer != null && isDraggingCombo)
+            {
+                Vector2 pos = comboContainer.transform.position;
+                SetComboPos(pos.x, pos.y);
+                UpdateConfig();
+            }
+            else if (!inGame)
+            {
+                if (!isConfigShowing)
+                {
+                    if (linkID == "RockMeterConfig" || doOpenConfig)
+                    {
+                        RefreshColors();
+                        configMenuObj = OpenConfigMenu();
+                        
+                    }
+                    
+                }
+                else if (isConfigShowing)
+                {
+                    switch(linkID)
+                    {
+                        case "ComboTextColor":
+                            ShowColorPicker("ComboTextColor", comboTextColor);
+                            break;
+                        case "ComboEdgeColor":
+                            ShowColorPicker("ComboEdgeColor", comboEdgeColor);
+                            break;
+                        case "ComboMeterColor":
+                            ShowColorPicker("ComboMeterColor", comboMeterColor);
+                            break;
+                        case "ComboMeterToggle":
+                            ToggleBoolConfig("EnableComboMeter");
+                            configMenuTMP.text = ParseConfigMenuText();
+                            break;
+                        case "RockMeterToggle":
+                            ToggleBoolConfig("EnableRockMeter");
+                            configMenuTMP.text = ParseConfigMenuText();
+                            break;
+                        case "SongFailToggle":
+                            ToggleBoolConfig("RestartOnFail");
+                            configMenuTMP.text = ParseConfigMenuText();
+                            break;
+                        case "ResetComboColors":
+                            comboMeterRGB = "444444";
+                            comboMeterColor = FromHexString_NoTag(comboMeterRGB);
+                            comboEdgeRGB = "7F7F7F";
+                            comboEdgeColor = FromHexString_NoTag(comboEdgeRGB);
+                            comboTextRGB = "FFFFFF";
+                            comboTextColor = FromHexString_NoTag(comboTextRGB);
+                            cfgComboMeterColorHex.SetSerializedValue(comboMeterRGB);
+                            cfgComboEdgeColorHex.SetSerializedValue(comboEdgeRGB); 
+                            cfgComboTextColorHex.SetSerializedValue(comboTextRGB);
+                            RefreshColors();
+                            configMenuTMP.text = ParseConfigMenuText();
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+            isMouseDown = false;
         }
         #endregion
         // Config entries
         public ConfigEntry<int> cfgMeterX;
         public ConfigEntry<int> cfgMeterY;
+        public ConfigEntry<int> cfgComboX;
+        public ConfigEntry<int> cfgComboY;
         public ConfigEntry<bool> cfgRestartFail;
         public ConfigEntry<bool> cfgEnableMeter;
         public ConfigEntry<bool> cfgShowComboMeter;
+        public ConfigEntry<string> cfgComboMeterColorHex;
+        public ConfigEntry<string> cfgComboEdgeColorHex;
+        public ConfigEntry<string> cfgComboTextColorHex;
+        // public ConfigEntry<string> cfgRockMeterColorHex;    // soon™
+        // public Color rockMeterColor;
+        // public string rockMeterRGB;
+        public Color comboMeterColor;
+        public Color comboEdgeColor;
+        public Color comboTextColor;
+        public string comboMeterRGB;
+        public string comboEdgeRGB;
+        public string comboTextRGB;
+
+        public TextMeshProUGUI dialogTMP;
+        public TextMeshProUGUI watermarkTMP;
+        public object configMenuObj;
+
+        public string ToHexString_NoTag(Color c) => String.Format("{0:X2}{1:X2}{2:X2}", (int)(c.r * 255), (int)(c.g * 255), (int)(c.b * 255));
+        public Color FromHexString_NoTag(string hex) => new Color(
+            int.Parse(hex.Substring(0, 2), System.Globalization.NumberStyles.HexNumber) / 255f,
+            int.Parse(hex.Substring(2, 2), System.Globalization.NumberStyles.HexNumber) / 255f,
+            int.Parse(hex.Substring(4, 2), System.Globalization.NumberStyles.HexNumber) / 255f);
 
         #region Unity Methods
         private void Start()
@@ -720,6 +1048,7 @@ namespace RockMeterYARG
             // Load assemblies and methods from them
             yargMainAsm = Assembly.Load("Assembly-CSharp.dll");
             yargCoreAsm = Assembly.Load("YARG.Core.dll");
+            gvType = yargMainAsm.GetType("YARG.GlobalVariables");
             gmType = yargMainAsm.GetType("YARG.Gameplay.GameManager");
             basePlayerType = yargMainAsm.GetType("YARG.Gameplay.Player.BasePlayer");
             guitarType = yargMainAsm.GetType("YARG.Gameplay.Player.FiveFretPlayer");
@@ -734,25 +1063,39 @@ namespace RockMeterYARG
             pauseMethod = gmType.GetMethod("Pause");
             dialogShowMethod = dmType.GetMethod("ShowMessage");
             dialogClearMethod = dmType.GetMethod("ClearDialog");
+            dialogColorMethod = dmType.GetMethod("ShowColorPickerDialog");
             toastMethod_Info = tmType.GetMethod("ToastInformation");
             toastMethod_Warn = tmType.GetMethod("ToastWarning");
 
-            // // To do: implement multiple players eventually
             inGame = false;
             songFailed = false;
 
-            cfgEnableMeter = Config.Bind("Rock Meter", "EnableRockMeter", true,
+            cfgEnableMeter = Config.Bind<bool>("Rock Meter", "EnableRockMeter", true,
                 "Enable or disable the Rock Meter entirely");
             meterEnabled = cfgEnableMeter.Value;
 
-            cfgRestartFail = Config.Bind("Rock Meter", "RestartOnFail", true,
+            cfgRestartFail = Config.Bind<bool>("Rock Meter", "RestartOnFail", true,
                 "Control whether to force restart on fail.  If false, then gameplay will not be interrupted on fail.");
             restartOnFail = cfgRestartFail.Value;
 
-            cfgShowComboMeter = Config.Bind("Combo Meter", "EnableComboMeter", true,
+            cfgShowComboMeter = Config.Bind<bool>("Combo Meter", "EnableComboMeter", true,
                 "Enable or disable the combo meter");
             showCombo = cfgShowComboMeter.Value;
-            
+
+            // Combo Meter colors
+            comboMeterColor = new Color(0.27f, 0.27f, 0.27f);
+            comboEdgeColor  = new Color(0.5f, 0.5f, 0.5f);
+            comboTextColor  = new Color(1f, 1f, 1f);
+            comboMeterRGB = ToHexString_NoTag(comboMeterColor);
+            comboEdgeRGB = ToHexString_NoTag(comboEdgeColor);
+            comboTextRGB = ToHexString_NoTag(comboTextColor);
+            cfgComboMeterColorHex = Config.Bind<string>("Combo Meter", "ComboMeterColor",
+                comboMeterRGB, "RGB hex color of the combo meter");
+            cfgComboEdgeColorHex  = Config.Bind<string>("Combo Meter", "MeterEdgeColor",
+                comboEdgeRGB, "RGB hex color of the edge of the streak counter");
+            cfgComboTextColorHex  = Config.Bind<string>("Combo Meter", "ComboTextColor",
+                comboTextRGB, "RGB hex color of the note streak text");
+
             // TO DO: Maybe add config options for these values?
             missDrainAmount = 0.0277;
             hitHealthAmount = 0.0069;  // Nice
@@ -760,10 +1103,23 @@ namespace RockMeterYARG
 
             meterPosX = Screen.width * 0.875f;
             meterPosY = Screen.height * 0.6f;
-            cfgMeterX = Config.Bind("Rock Meter", "MeterPosition_X", (int)meterPosX);
-            cfgMeterY = Config.Bind("Rock Meter", "MeterPosition_Y", (int)meterPosY);
-            isDragging = false;
+            comboPosX = meterPosX;
+            comboPosY = Screen.height * 0.53f;
+            cfgMeterX = Config.Bind<int>("Rock Meter", "MeterPosition_X", (int)meterPosX);
+            cfgMeterY = Config.Bind<int>("Rock Meter", "MeterPosition_Y", (int)meterPosY);
+            cfgComboX = Config.Bind<int>("Combo Meter", "ComboPosition_X", (int)comboPosX);
+            cfgComboY = Config.Bind<int>("Combo Meter", "ComboPosition_Y", (int)comboPosY);
+            // refresh the values
+            meterPosX = cfgMeterX.Value;
+            meterPosY = cfgMeterY.Value;
+            comboPosX = cfgComboX.Value;
+            comboPosY = cfgComboY.Value;
+
+            isDraggingHealth = false;
             isMouseDown = false;
+            isLegacyComboMeter = false;
+            isConfigShowing = false;
+            doOpenConfig = false;
 
             SceneManager.sceneLoaded += delegate (Scene sc, LoadSceneMode __)
             {
@@ -775,12 +1131,24 @@ namespace RockMeterYARG
                     restartOnFail = cfgRestartFail.Value;
                     meterEnabled = cfgEnableMeter.Value;
                     showCombo = cfgShowComboMeter.Value;
+
+                    // get meter positions
+                    meterPosX = cfgMeterX.Value;
+                    meterPosY = cfgMeterY.Value;
+                    comboPosX = cfgComboX.Value;
+                    comboPosY = cfgComboY.Value;
+
+                    // get meter colors
+                    comboMeterColor = FromHexString_NoTag(cfgComboMeterColorHex.GetSerializedValue());
+                    comboEdgeColor = FromHexString_NoTag(cfgComboEdgeColorHex.GetSerializedValue());
+                    comboTextColor = FromHexString_NoTag(cfgComboTextColorHex.GetSerializedValue());
                 }
             };
             SceneManager.sceneUnloaded += delegate (Scene sc)
             {
                 if (sc.name == "Gameplay")
                 {
+                    doOpenConfig = false;
                     currentHealth = defaultHealth;
                     inGame = false;
                     meterContainer = null;
@@ -793,7 +1161,18 @@ namespace RockMeterYARG
         }
         private void LateUpdate()
         {
-
+            if (watermarkTMP == null)
+            {
+                watermarkTMP = FindAndSetActive("Watermark Container").GetComponentInChildren<TextMeshProUGUI>();
+                if (watermarkTMP.text.Contains("YARG v1.22.33b")) // Detect if we're on the Stable Build
+                {
+                    gvo = GameObject.Find("Global Variables");
+                    string versionTxt = (string)gvType.GetField("CURRENT_VERSION").GetValue(gvo.GetComponent("YARG.GlobalVariables"));
+                    watermarkTMP.text = String.Format("<b>YARG {0}</b>", versionTxt);
+                }
+                watermarkTMP.text = String.Format("<link=\"RockMeterConfig\"><color=#33FFFF>Rock Meter v{0}</color></link>  •  ", VersionString) + watermarkTMP.text;
+                
+            }
             if (inGame)
             {
 #if DEBUG
@@ -807,13 +1186,16 @@ namespace RockMeterYARG
                 {
                     dbgTxtTMP = dbgTxtObj.GetComponent<TextMeshProUGUI>();
                     dbgTxtTMP.text += "<br>Mouse position: " + Mouse.current.position.ReadValue().ToString();
-                    dbgTxtTMP.text += "<br>Dragging meter: " + isDragging.ToString();
+                    dbgTxtTMP.text += "<br>Dragging meter: " + isDraggingHealth.ToString();
                     dbgTxtTMP.text += "<br>Rock Meter:   " + Math.Round(currentHealth * 100).ToString() + "%";
                 }
 #endif
                 if (comboTxt != null)
                 {
-                    if (comboTxt.text == null) SetComboMeter(0);    // Initialize streak counter if it isn't already
+                    if (comboTxt.text == null)  // Initialize streak counter if it isn't already
+                    {
+                        SetComboMeter(0);
+                    }
                 }
             }
 
@@ -824,21 +1206,58 @@ namespace RockMeterYARG
                     MouseDownHandle();
                     isMouseDown = true;
                 }
-                if (isDragging) MouseDragHandle();
+                if (isDraggingHealth || isDraggingCombo) MouseDragHandle();
             }
             if (!Mouse.current.leftButton.isPressed && isMouseDown)
             {
                 MouseUpHandle();
 
-                isDragging = false;
+                isDraggingHealth = false;
+                isDraggingCombo = false;
                 isMouseDown = false;
             }
             if (inGame && Mouse.current.rightButton.isPressed)
             {
-                SetMeterPos(Screen.width * 0.875f, Screen.height * 0.6f);
-                isDragging = false;
+                SetHealthMeterPos(Screen.width * 0.875f, Screen.height * 0.6f);
+                SetComboPos(Screen.width * 0.875f, Screen.height * 0.53f);
+                isDraggingHealth = false;
                 isMouseDown = false;
                 UpdateConfig();
+            }
+            
+            if (!inGame && Mouse.current.leftButton.isPressed && !isMouseDown)
+            {
+                int linkIndex = TMP_TextUtilities.FindIntersectingLink(watermarkTMP, Mouse.current.position.ReadValue(), Camera.main);
+                configMenuTMP = GameObject.Find("Persistent Canvas/Dialog Container/MessageDialog(Clone)/Base/Content/Message")?.GetComponent<TextMeshProUGUI>();
+                if (isConfigShowing && configMenuTMP != null)
+                {
+                    linkIndex = TMP_TextUtilities.FindIntersectingLink(configMenuTMP, Mouse.current.position.ReadValue(), Camera.main);
+                    if (linkIndex != -1)
+                    {
+                        linkID = configMenuTMP.textInfo.linkInfo[linkIndex].GetLinkID();
+                        isMouseDown = true;
+                    }
+                }
+                else if (linkIndex != -1)
+                {
+                    linkID = watermarkTMP.textInfo.linkInfo[linkIndex].GetLinkID();
+                    isMouseDown = true;
+                }
+            }
+            if (!inGame && !Mouse.current.leftButton.isPressed && isMouseDown && !doOpenConfig)
+            {
+                MouseUpHandle();
+            }
+            if (isConfigShowing)
+            {
+                if (configMenuTMP == null)  // called when config menu is closed
+                {
+                    isConfigShowing = false;
+                }
+            }
+            else if (doOpenConfig)
+            {
+                configMenuObj = OpenConfigMenu();
             }
         }
         #endregion
