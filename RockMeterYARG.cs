@@ -112,7 +112,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
 
         private const string MyGUID = "com.yoshibyl.RockMeterYARG";
         private const string PluginName = "RockMeterYARG";
-        private const string VersionString = "0.6.1";
+        private const string VersionString = "0.6.2";
 
         public string LogMsg(object obj)
         {
@@ -156,6 +156,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
         public bool isDraggingHealth;
         public bool isDraggingCombo;
         public bool isMouseDown;
+        public bool dragBothMeters;
 
         public List<UnityEngine.Object> players;
         public List<YARG.Core.Engine.BaseStats> statsList;
@@ -438,6 +439,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
             if (gmo != null)
             {
                 object ret = gmType.GetProperty("IsPractice").GetValue(gmo.gameObject.GetComponent("YARG.Gameplay.GameManager"));
+                inGame = true;
                 
                 return (bool)ret;
             }
@@ -851,6 +853,8 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
         public RawImage needleImg;
         public RawImage comboMeterImg;
         public RawImage comboEdgeImg;
+        public RectTransform rectMeter;     // Rock Meter bound box
+        public RectTransform rectCombo;     // Combo meter bound box
         public bool isLegacyComboMeter;
         public bool meterEnabled;
 
@@ -905,53 +909,66 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
         public void MouseDownHandle()
         {
             mousePosOnDown = Mouse.current.position.ReadValue();
+            dragDiff_Health = new Vector2(69420,69420);
+            dragDiff_Combo = new Vector2(69420,69420);
             if (inGame)
             {
-                RectTransform rectMeter = null;
-                RectTransform rectCombo = null;
                 isDraggingHealth = false;
+                isDraggingCombo = false;
                 if (meterContainer != null)
                 {
-                    rectMeter = meterContainer.GetComponentInChildren<RectTransform>();
-                    isDraggingHealth = rectMeter.rect.Contains(mousePosOnDown - (Vector2)meterContainer.transform.position);
+                    rectMeter = meterContainer?.GetComponentInChildren<RectTransform>();
+                    if (rectMeter != null)
+                    {
+                        dragDiff_Health = mousePosOnDown - (Vector2)meterContainer.transform.position;
+                        isDraggingHealth = rectMeter.rect.Contains(dragDiff_Health);
+                    }
                 }
-                if (!isDraggingHealth)
+                if (comboContainer != null)
                 {
-                    rectCombo = comboContainer.GetComponentInChildren<RectTransform>();
-                    isDraggingCombo = rectCombo.rect.Contains(mousePosOnDown - (Vector2)comboContainer.transform.position);
-                    dragDiff_Combo = mousePosOnDown - (Vector2)comboContainer.transform.position;
+                    rectCombo = comboContainer?.GetComponentInChildren<RectTransform>();
+                    if (rectCombo != null)
+                    {
+                        dragDiff_Combo = mousePosOnDown - (Vector2)comboContainer.transform.position;
+                        isDraggingCombo = rectCombo.rect.Contains(dragDiff_Combo);
+                    }
                 }
-                else
+                if (Keyboard.current.ctrlKey.isPressed && !dragBothMeters)
                 {
-                    dragDiff_Health = mousePosOnDown - (Vector2)meterContainer.transform.position;
+                    dragBothMeters = true;
                 }
             }
         }
         public void MouseDragHandle()
         {
-            if (meterContainer != null && isDraggingHealth)
+            if ((isDraggingHealth || dragBothMeters) && meterContainer != null && dragDiff_Health.x != 69420)
             {
+                // dragDiff_Health = mousePosOnDown - (Vector2)meterContainer.transform.position;
                 meterContainer.transform.position = (Vector3)Mouse.current.position.value - (Vector3)dragDiff_Health;
             }
-            else if (comboContainer != null && isDraggingCombo)
+            if ((isDraggingCombo || dragBothMeters) && comboContainer != null && dragDiff_Combo.x != 69420)
             {
+                // dragDiff_Combo = mousePosOnDown - (Vector2)meterContainer.transform.position;
                 comboContainer.transform.position = (Vector3)Mouse.current.position.value - (Vector3)dragDiff_Combo;
             }
         }
         public void MouseUpHandle()
         {
-            if (inGame && meterContainer != null && isDraggingHealth)
+            if (inGame && meterContainer != null)
             {
-                Vector2 pos = meterContainer.transform.position;
-                SetHealthMeterPos(pos.x, pos.y);
+                if (meterContainer != null)
+                {
+                    Vector2 meterPos = meterContainer.transform.position;
+                    SetHealthMeterPos(meterPos.x, meterPos.y);
+                }
+                if (comboContainer != null)
+                {
+                    Vector2 comboPos = comboContainer.transform.position;
+                    SetComboPos(comboPos.x, comboPos.y);
+                }
                 UpdateConfig();
             }
-            else if (inGame && comboContainer != null && isDraggingCombo)
-            {
-                Vector2 pos = comboContainer.transform.position;
-                SetComboPos(pos.x, pos.y);
-                UpdateConfig();
-            }
+            
             else if (!inGame)
             {
                 if (!isConfigShowing)
@@ -1009,6 +1026,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
                     }
                 }
             }
+            dragBothMeters = false;
             isMouseDown = false;
         }
         #endregion
@@ -1210,7 +1228,7 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
                     MouseDownHandle();
                     isMouseDown = true;
                 }
-                if (isDraggingHealth || isDraggingCombo) MouseDragHandle();
+                if (isDraggingHealth || isDraggingCombo || dragBothMeters) MouseDragHandle();
             }
             if (!Mouse.current.leftButton.isPressed && isMouseDown)
             {
@@ -1229,7 +1247,8 @@ namespace RockMeterYARG         // TO DO:  Implement configurable combo meter co
                 isMouseDown = false;
                 UpdateConfig();
             }
-            
+
+            // Handle clicking config menu and stuff
             if (!inGame && Mouse.current.leftButton.isPressed && !isMouseDown)
             {
                 int linkIndex = TMP_TextUtilities.FindIntersectingLink(watermarkTMP, Mouse.current.position.ReadValue(), Camera.main);
