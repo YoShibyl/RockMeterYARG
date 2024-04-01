@@ -1,13 +1,16 @@
 # Rock Meter mod for YARG
+<details open>
+<summary>Picture (v0.6.X)</summary>
 
 ![rock meter 0 4 0](https://github.com/YoShibyl/RockMeterYARG/assets/18250695/1488687c-1ce1-4a8a-9713-051daeb34bab)
+</details>
 
 A BepInEx 6 mod for YARG v0.12.1+ that adds a Rock Meter, a Combo Meter, and the ability to fail songs
 
 ## Currently tested and working YARG versions
 | Stable   | Nightly (recommended) |
 |----------|-----------------------|
-| v0.12.1  | b2359                 |
+| v0.12.1  | b2365                 |
 
 ## Disclaimer
 As this is a modification to the game, bugs may occur and performance may be slightly impacted.  Also, I'm not that great at coding, so if you can improve this, feel free to help out.
@@ -41,10 +44,14 @@ This mod has its own configuration file, located at `BepInEx/config/com.yoshibyl
 
 As of v0.6.0, the config options can be edited in-game via the config menu by clicking the Rock Meter version text, which is located next to the version watermark in the top-right corner.
 
+### Themes *(coming in v0.7.0)*
+Read about making themes [here](https://github.com/YoShibyl/RockMeterYARG/blob/main/Docs/Themes.md) *(WIP)*
+
 ## Credits and thanks
 - EliteAsian123 : Created YARG
 - Everyone who has worked on YARG
 - The Clone Hero / YARG community
+- rickyah : Created the [INI parser](https://github.com/rickyah/ini-parser), used in v0.7.0+
 - This mod was created by YoShibyl
 
 **Shout-out to these streamers:**
