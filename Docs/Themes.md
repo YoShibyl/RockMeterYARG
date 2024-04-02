@@ -6,7 +6,7 @@ In the config menu for v0.7.0 and newer, you'll be able to load custom themes fo
 ## How to make a theme
 To start, create a folder for your theme, preferably within the `BepInEx/plugins/assets/themes` folder in your YARG installation.
 
-Next, you're going to want to add a `theme.ini` file to said theme folder.  For reference, a `theme.ini` is included in the `BepInEx/plugins/assets` folder, starting with v0.7.0, which should look something like this:
+Next, you're going to want to add a `theme.ini` file to said theme folder.  For reference, a `theme.ini` is included in the `BepInEx/plugins/assets` folder, starting with v0.7.0, which should look something like this in your theme:
 <details open>
   <summary>theme.ini - v0.7.0-pre2</summary>
 
@@ -21,6 +21,7 @@ description = Lorem ipsum
 [Rock Meter]
 health_scale = 1
 max_needle_angle = 88
+force_basic_healthmeter = false
 
 [Combo Meter]
 combo_scale = 1
@@ -45,6 +46,8 @@ default_health_overlay = ffffff
   - Default: 1 (`float`)
 - **`max_needle_angle`** : The maximum needle rotation from the default position of the Rock Meter, in degrees.  Useful if your theme uses a design with a different angular range.
   - Default: 88 (`float`)
+- **`force_basic_healthmeter`** : If set to true, this setting will skip loading the `health_meter_ryg.png` asset.  Useful for themes that don't use a separate asset for red/yellow/green zones.
+  - Default: false (`bool`)
 - **`combo_scale`** : Like `health_scale`, controls the size of the Combo Meter.
   - Default: 1 (`float`)
 - **`max_digits`** : Controls the maximum number of digits to display on the Combo Meter, ranging from 4 to 9.  For example, if set to 7, then the Combo Meter won't display values past 9,999,999.
@@ -69,4 +72,5 @@ Of course, you don't need to include any assets in your theme at all, since the 
 - **`health_meter_base.png`** : The body of the Rock Meter, usually colorable.
 - **`health_meter_ryg.png`** : The part of the Rock Meter that shows the red/yellow/green zones, indicating how well the player is performing.
 - **`meter.png`** : A basic Rock Meter image to fallback to, in case the previous two assets are missing.
+- **`health_meter_overlay.png`** *(optional)* : An overlay image to render on top of the entire Rock Meter.  If used, then definitely make this one transparent, as you'll want the Rock Meter to be visible through it.
 - **`needle.png`** : The needle of the Rock Meter.  Should be pointing to the left, with the base of rotation at the center of the image.
