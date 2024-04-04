@@ -136,7 +136,7 @@ namespace RockMeterYARG
 
         private const string MyGUID          = "com.yoshibyl.RockMeterYARG";
         private const string PluginName      = "RockMeterYARG";
-        private const string VersionString   = "0.7.0-pre2";
+        private const string VersionString   = "0.7.0";
         public const string ProperVersion    = "0.7.0.0";
 
         public string LogMsg(object obj)
@@ -382,7 +382,7 @@ namespace RockMeterYARG
                         themeCreator = themeData["Meta"]["creator"];
                 } catch(Exception e) { LogMsg(e); }
 
-                if (configMenuTMP != null) configMenuTMP.text = RefreshConfigMenuText();
+                if (dialogBoxTMP != null) dialogBoxTMP.text = RefreshConfigMenuText();
                 UpdateConfig();
                 return dir;
             }
@@ -513,9 +513,9 @@ namespace RockMeterYARG
                             {
                                 overhits = (s as DrumsStats).Overhits;
                                 msgSummary = msgSummary.Replace("<u>Stats</u>", "<u>Stats (Drums)</u>");
-                                msgSummary += "<br><pos=35%>Overhits:<pos=55%>" + overhits.ToString("N0");
+                                msgSummary += "<br><pos=35%>Overhits:<pos=55%>" + overhits.ToString("N0") + "<br>";
                             }
-                            msgSummary += "</align><br><br><size=36>Press <b>PAUSE</b> or click the button below to restart.</size>";
+                            msgSummary += "<br></align><br><size=36><b>Press PAUSE/Esc to restart.</b></size>";
                         }
                         else if (s is VocalsStats)
                         {
@@ -531,7 +531,7 @@ namespace RockMeterYARG
                                 + "<br><pos=35%>Best Streak:<pos=55%>" + maxStreak.ToString("N0")
                                 + "<br><pos=35%>SP Phrases:<pos=55%>" + voxStats.StarPowerPhrasesHit + " / " + voxStats.TotalStarPowerPhrases;
 
-                            msgSummary += "</align><br><br><br><size=36>Press <b>PAUSE</b> or click the button below to restart.</size>";
+                            msgSummary += "</align><br><br><br><br><size=36><b>Press PAUSE/Esc to restart.</b></size>";
                         }
                         else if (s == null)
                         {
@@ -651,6 +651,8 @@ namespace RockMeterYARG
                 if (failed)
                 {
                     currentDialog = Dialog("Song failed!", msgSummary);
+                    GameObject button = GameObject.Find("Persistent Canvas/Dialog Container/MessageDialog(Clone)/Base/Dialog Button Container");
+                    button.SetActive(false);
 
                     PauseOnFail();
                 }
@@ -890,6 +892,10 @@ namespace RockMeterYARG
                 string comboStr = streak.ToString(new string('0', maxDigitsCombo)); // Repeat '0' max_digits number of times
                 int streakThreshold = 30;
 
+                if (statsList.Count > 0)
+                {
+                    if (statsList[0] is VocalsStats) streakThreshold = 1;
+                }
                 if (statsList.Count > 1) streakThreshold = 1;
 
                 if (streak >= streakThreshold) comboStr = comboStr.Replace(streak.ToString(), "</color><color=#" + comboColor + ">" + streak);
@@ -968,6 +974,7 @@ namespace RockMeterYARG
             }
             return r;
         }
+
 
         public void InitMeters()
         {
@@ -1242,7 +1249,7 @@ namespace RockMeterYARG
         public bool meterEnabled;
 
         // Config menu stuff
-        public TextMeshProUGUI configMenuTMP;
+        public TextMeshProUGUI dialogBoxTMP;
         public bool isConfigShowing;
         public bool doOpenConfig;
         public string OnOffStr(bool boolean, bool colorCodeIt = true)
@@ -1289,7 +1296,7 @@ namespace RockMeterYARG
             object r = null;
             RefreshColors();
             r = Dialog("Rock Meter Config : " + VersionString, RefreshConfigMenuText());
-            configMenuTMP = GameObject.Find("Persistent Canvas/Dialog Container/MessageDialog(Clone)/Base/Content/Message")?.GetComponent<TextMeshProUGUI>();
+            dialogBoxTMP = GameObject.Find("Persistent Canvas/Dialog Container/MessageDialog(Clone)/Base/Content/Message")?.GetComponent<TextMeshProUGUI>();
             currentDialog = r;
             isConfigShowing = true;
             doOpenConfig = false;
@@ -1321,21 +1328,22 @@ namespace RockMeterYARG
                     break;
                 case "ComboMeterToggle":
                     ToggleBoolConfig("EnableComboMeter");
-                    configMenuTMP.text = RefreshConfigMenuText();
+                    dialogBoxTMP.text = RefreshConfigMenuText();
                     break;
                 case "RockMeterToggle":
                     ToggleBoolConfig("EnableRockMeter");
-                    configMenuTMP.text = RefreshConfigMenuText();
+                    dialogBoxTMP.text = RefreshConfigMenuText();
                     break;
                 case "SongFailToggle":
                     ToggleBoolConfig("RestartOnFail");
-                    configMenuTMP.text = RefreshConfigMenuText();
+                    dialogBoxTMP.text = RefreshConfigMenuText();
                     break;
                 case "ResetComboColors":
                     comboMeterRGB = "444444";
                     comboEdgeRGB = "7F7F7F";
                     comboTextRGB = "FFFFFF";
-                    if (File.Exists(Path.Combine(selectedTheme, "theme.ini"))) {
+                    if (File.Exists(Path.Combine(selectedTheme, "theme.ini")))
+                    {
                         IniData ini = ParseThemeIni(Path.Combine(selectedTheme, "theme.ini"));
 
                         if (ini.Sections.ContainsSection("Colors"))
@@ -1355,7 +1363,7 @@ namespace RockMeterYARG
                     cfgComboEdgeColorHex.SetSerializedValue(comboEdgeRGB);
                     cfgComboTextColorHex.SetSerializedValue(comboTextRGB);
                     RefreshColors();
-                    configMenuTMP.text = RefreshConfigMenuText();
+                    dialogBoxTMP.text = RefreshConfigMenuText();
                     break;
                 case "ResetHealthColors":
                     rockMeterRGB = "F9BC75";
@@ -1377,18 +1385,12 @@ namespace RockMeterYARG
                     cfgRockMeterColorHex.SetSerializedValue(rockMeterRGB);
                     cfgRockOverlayColorHex.SetSerializedValue(rockOverlayRGB);
                     RefreshColors();
-                    configMenuTMP.text = RefreshConfigMenuText();
+                    dialogBoxTMP.text = RefreshConfigMenuText();
                     break;
                 case "SelectTheme":
-                    // configSubmenu = ShowTextInputDialog("Theme", "<size=22>Type the name of the theme folder to use.\n" +
-                    //    "Type a space to revert to default, or leave blank to cancel.\n" +
-                    //    "<link=\"OpenThemeFolder\"><color=#7fffff><u>Click here to open the themes folder</u></color></link></size>");
-                    // currentDialog = configSubmenu;
-                    // configMenuTMP = GameObject.Find("Persistent Canvas/Dialog Container/RenameDialog(Clone)/Base/Title")?.GetComponent<TextMeshProUGUI>();
                     OpenThemeFolder(selectedTheme);
                     break;
                 case "OpenThemeFolder":
-                    
                     System.Diagnostics.Process.Start(Path.Combine(Paths.PluginPath, "assets", "themes"));
                     break;
                 default:
@@ -1461,6 +1463,15 @@ namespace RockMeterYARG
                     dragBothMeters = true;
                 }
             }
+            dialogBoxTMP = GameObject.Find("Persistent Canvas/Dialog Container/MessageDialog(Clone)/Base/Content/Message")?.GetComponentInChildren<TextMeshProUGUI>();
+            if (dialogBoxTMP != null && inGame)
+            {
+                int linkIndex = TMP_TextUtilities.FindIntersectingLink(dialogBoxTMP, Mouse.current.position.ReadValue(), Camera.main);
+                if (linkIndex != -1)
+                {
+                    linkID = dialogBoxTMP.textInfo.linkInfo[linkIndex].GetLinkID();
+                }
+            }
         }
         public void MouseDragHandle()
         {
@@ -1489,21 +1500,17 @@ namespace RockMeterYARG
                 }
                 UpdateConfig();
             }
-            
-            else if (!inGame)
+            if (linkID == "RockMeterConfig" && !inGame)
             {
-                if (linkID == "RockMeterConfig")
-                {
-                    doOpenConfig = true;
-                    RefreshColors();
-                    configMenuObj = OpenConfigMenu();
-                    currentDialog = configMenuObj;
-                }
-                
-                HandleLinkClick();
+                doOpenConfig = true;
+                RefreshColors();
+                configMenuObj = OpenConfigMenu();
+                currentDialog = configMenuObj;
             }
+            
+            HandleLinkClick();
+
             dragBothMeters = false;
-            isMouseDown = false;
         }
         #endregion
         // Config entries
@@ -1531,7 +1538,6 @@ namespace RockMeterYARG
         public string rockMeterRGB;
         public string rockOverlayRGB;
         
-        public TextMeshProUGUI dialogTMP;
         public TextMeshProUGUI watermarkTMP;
         public object configMenuObj;
         public bool configInputShowing;
@@ -1720,7 +1726,6 @@ namespace RockMeterYARG
                     watermarkTMP.text = String.Format("<b>YARG {0}</b>", versionTxt);
                 }
                 watermarkTMP.text = String.Format("<link=\"RockMeterConfig\"><color=#33FFFF>Rock Meter v{0}</color></link>  •  ", VersionString) + watermarkTMP.text;
-                
             }
             if (inGame)
             {
@@ -1752,18 +1757,10 @@ namespace RockMeterYARG
             {
                 if (!isMouseDown)
                 {
+                    dialogBoxTMP = GameObject.Find("Persistent Canvas/Dialog Container/MessageDialog(Clone)/Base/Content/Message")?.GetComponent<TextMeshProUGUI>();
                     MouseDownHandle();
-                    isMouseDown = true;
                 }
                 if (isDraggingHealth || isDraggingCombo || dragBothMeters) MouseDragHandle();
-            }
-            if (!Mouse.current.leftButton.isPressed && isMouseDown)
-            {
-                MouseUpHandle();
-
-                isDraggingHealth = false;
-                isDraggingCombo = false;
-                isMouseDown = false;
             }
             if (inGame && Mouse.current.rightButton.isPressed)
             {
@@ -1778,30 +1775,32 @@ namespace RockMeterYARG
             // Handle clicking config menu and stuff
             if (Mouse.current.leftButton.isPressed && !isMouseDown)
             {
-                int linkIndex = TMP_TextUtilities.FindIntersectingLink(watermarkTMP, Mouse.current.position.ReadValue(), Camera.main);
-                if (configMenuTMP != null)
+                int linkIndex = -1;
+                if (dialogBoxTMP != null)
                 {
-                    linkIndex = TMP_TextUtilities.FindIntersectingLink(configMenuTMP, Mouse.current.position.ReadValue(), Camera.main);
+                    linkIndex = TMP_TextUtilities.FindIntersectingLink(dialogBoxTMP, Mouse.current.position.ReadValue(), Camera.main);
                     if (linkIndex != -1)
                     {
-                        linkID = configMenuTMP.textInfo.linkInfo[linkIndex].GetLinkID();
-                        isMouseDown = true;
+                        linkID = dialogBoxTMP.textInfo.linkInfo[linkIndex].GetLinkID();
                     }
                 }
-                else if (linkIndex != -1)
+                else
                 {
-                    linkID = watermarkTMP.textInfo.linkInfo[linkIndex].GetLinkID();
-                    isMouseDown = true;
+                    linkIndex = TMP_TextUtilities.FindIntersectingLink(watermarkTMP, Mouse.current.position.ReadValue(), Camera.main);
+                    if (linkIndex != -1 && !inGame)
+                    {
+                        linkID = watermarkTMP.textInfo.linkInfo[linkIndex].GetLinkID();
+                    }
                 }
                 isMouseDown = true;
             }
-            if (!inGame && !Mouse.current.leftButton.isPressed && isMouseDown && !doOpenConfig)
+            if (!Mouse.current.leftButton.isPressed && isMouseDown)
             {
                 MouseUpHandle();
             }
             if (isConfigShowing)
             {
-                if (configMenuTMP == null)  // called when config menu is closed
+                if (dialogBoxTMP == null)  // called when config menu is closed
                 {
                     isConfigShowing = false;
                 }
@@ -1814,6 +1813,15 @@ namespace RockMeterYARG
                     currentDialog = configMenuObj;
                     configInputShowing = false;
                 }
+            }
+
+            if (!Mouse.current.leftButton.isPressed && isMouseDown)
+            {
+                MouseUpHandle();
+
+                isDraggingHealth = false;
+                isDraggingCombo = false;
+                isMouseDown = false;
             }
         }
         #endregion
