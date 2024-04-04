@@ -13,7 +13,7 @@ As this is a modification to the game, bugs may occur and performance may be sli
 ## Currently tested and working YARG versions
 | Stable   | Nightly (recommended) |
 |----------|-----------------------|
-| v0.12.1  | b2367                 |
+| v0.12.1  | b2369                 |
 
 ### While this mod and BepInEx are installed, please *DO NOT* report any bugs to YARC, *unless* you can reproduce them in the unmodded game!
 
