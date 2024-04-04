@@ -1,6 +1,4 @@
 # Themes
-***(Coming soon in v0.7.0)***
-
 In the config menu for v0.7.0 and newer, you'll be able to load custom themes for the Rock Meter and Combo Meter.
 
 ## How to make a theme
@@ -8,7 +6,7 @@ To start, create a folder for your theme, preferably within the `BepInEx/plugins
 
 Next, you're going to want to add a `theme.ini` file to said theme folder.  For reference, a `theme.ini` is included in the `BepInEx/plugins/assets` folder, starting with v0.7.0, which should look something like this in your theme:
 <details open>
-  <summary>theme.ini - v0.7.0-pre2</summary>
+  <summary>theme.ini - v0.7.0</summary>
 
 ```ini
 [Meta]
@@ -16,7 +14,7 @@ theme_name = Example Theme
 creator = Your name
 description = Lorem ipsum
 
-;; Version 0.7.0-pre2
+;; Version 0.7.0
 
 [Rock Meter]
 health_scale = 1
@@ -42,20 +40,21 @@ default_health_overlay = ffffff
 </details>
 
 ### Options and their values
+- Everything in the `[Meta]` section should be self-explanatory.  The `description` is currently unused but may be used in future versions of the mod.
 - **`health_scale`** : Controls the size of the Rock Meter.
-  - Default: 1 (`float`)
+  - Default: `1` (float)
 - **`max_needle_angle`** : The maximum needle rotation from the default position of the Rock Meter, in degrees.  Useful if your theme uses a design with a different angular range.
-  - Default: 88 (`float`)
+  - Default: `88` (float)
 - **`force_basic_healthmeter`** : If set to true, this setting will skip loading the `health_meter_ryg.png` asset.  Useful for themes that don't use a separate asset for red/yellow/green zones.
-  - Default: false (`bool`)
+  - Default: `false` (bool)
 - **`combo_scale`** : Like `health_scale`, controls the size of the Combo Meter.
-  - Default: 1 (`float`)
+  - Default: `1` (float)
 - **`max_digits`** : Controls the maximum number of digits to display on the Combo Meter, ranging from 4 to 9.  For example, if set to 7, then the Combo Meter won't display values past 9,999,999.
-  - Default: 6 (`int`)
+  - Default: `6` (int)
 - **`force_basic_combometer`** : Controls whether to force load `combo_meter.png` instead of separate base and edge assets.  This is useful if you want to use a single image for the Combo Meter.
-  - Default: false (`bool`)
+  - Default: `false` (bool)
 - **`enable_combo_color`** and **`enable_health_color`** : Control whether to allow custom colors for the Combo Meter and Rock Meter, respectively.
-  - Default for both: true (`bool`)
+  - Default for both: `true` (bool)
 - The **`default_combo_*`** and **`default_health_*`** options : All of these control the default colors to load when resetting the meter colors in the Config Menu.
   - Default values can be found in the example config above, as hex color codes (`RRGGBB`, where RGB = red, green, blue)
 
