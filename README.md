@@ -1,19 +1,19 @@
 # Rock Meter mod for YARG
 <details open>
-<summary>Picture (v0.6.X)</summary>
+<summary>Default Rock Meter (v0.7.0)</summary>
 
-![rock meter 0 4 0](https://github.com/YoShibyl/RockMeterYARG/assets/18250695/1488687c-1ce1-4a8a-9713-051daeb34bab)
+![Rock Meter 0 7 0](https://github.com/YoShibyl/RockMeterYARG/assets/18250695/cf236b94-760b-4681-8af5-9de22b9e10e1)
 </details>
 
 A BepInEx 6 mod for YARG v0.12.1+ that adds a Rock Meter, a Combo Meter, and the ability to fail songs
 
+## Disclaimer
+As this is a modification to the game, bugs may occur and performance may be slightly impacted.  Also, I'm not that great at coding, so if you can improve this, feel free to help out.
+
 ## Currently tested and working YARG versions
 | Stable   | Nightly (recommended) |
 |----------|-----------------------|
-| v0.12.1  | b2365                 |
-
-## Disclaimer
-As this is a modification to the game, bugs may occur and performance may be slightly impacted.  Also, I'm not that great at coding, so if you can improve this, feel free to help out.
+| v0.12.1  | b2367                 |
 
 ### While this mod and BepInEx are installed, please *DO NOT* report any bugs to YARC, *unless* you can reproduce them in the unmodded game!
 
@@ -44,13 +44,13 @@ This mod has its own configuration file, located at `BepInEx/config/com.yoshibyl
 
 As of v0.6.0, the config options can be edited in-game via the config menu by clicking the Rock Meter version text, which is located next to the version watermark in the top-right corner.
 
-### Themes *(coming in v0.7.0)*
-Read about making themes [here](https://github.com/YoShibyl/RockMeterYARG/blob/main/Docs/Themes.md) *(WIP)*
+### Themes (v0.7.0+)
+Learn how to make themes [here](https://github.com/YoShibyl/RockMeterYARG/blob/main/Docs/Themes.md)
 
 ## Credits and thanks
 - EliteAsian123 : Created YARG
 - Everyone who has worked on YARG
-- The Clone Hero / YARG community
+- The Clone Hero / YARG communities
 - rickyah : Created the [INI parser](https://github.com/rickyah/ini-parser), used in v0.7.0+
 - This mod was created by YoShibyl
 
