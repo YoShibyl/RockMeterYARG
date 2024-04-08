@@ -105,13 +105,25 @@ namespace RockMeterYARG
             RockMeterYARG.Instance.InitMeters();
         }
     }
+    [HarmonyPatch(typeName: "YARG.Gameplay.GameManager", methodName: "Pause")]
+    public class OnPause
+    {
+        [HarmonyPostfix]
+        static void Postfix(ref bool __0)
+        {
+            if (__0)
+            {
+                RockMeterYARG.Instance.PauseUnpauseHandler();
+            }
+        }
+    }
     [HarmonyPatch(typeName: "YARG.Gameplay.GameManager", methodName: "Resume")]
     public class OnUnpause
     {
         [HarmonyPostfix]
         static void Postfix()
         {
-            RockMeterYARG.Instance.UnpauseHandler();
+            RockMeterYARG.Instance.PauseUnpauseHandler();
         }
     }
     [HarmonyPatch(typeName: "YARG.Menu.Persistent.DialogManager", methodName: "ClearDialog")]
@@ -136,8 +148,8 @@ namespace RockMeterYARG
 
         private const string MyGUID          = "com.yoshibyl.RockMeterYARG";
         private const string PluginName      = "RockMeterYARG";
-        private const string VersionString   = "0.7.0";
-        public const string ProperVersion    = "0.7.0.0";
+        private const string VersionString   = "0.7.1";
+        public const string ProperVersion    = "0.7.1.0";
 
         public string LogMsg(object obj)
         {
@@ -664,13 +676,13 @@ namespace RockMeterYARG
             pmm.SetActive(false);
         }
 
-        public bool UnpauseHandler()
+        public bool PauseUnpauseHandler()
         {
             statsList = GetAllStats();
             if (gmo != null)
             {
                 object ret = gmType.GetProperty("Paused").GetValue(gmo.GetComponent("YARG.Gameplay.GameManager"));
-                if (!(bool)ret && songFailed)
+                if (songFailed)
                 {
                     if (dmo != null) { dialogClearMethod.Invoke(dmo.GetComponent("YARG.Menu.Persistent.DialogManager"), null); }
                 }
@@ -1718,14 +1730,17 @@ namespace RockMeterYARG
         {
             if (watermarkTMP == null)
             {
-                watermarkTMP = FindAndSetActive("Watermark Container").GetComponentInChildren<TextMeshProUGUI>();
+                watermarkTMP = FindAndSetActive("Watermark Container")?.GetComponentInChildren<TextMeshProUGUI>();
                 gvo = GameObject.Find("Global Variables");
-                if (watermarkTMP.text.Contains("YARG v1.22.33b") && gvo != null) // Detect if we're on the Stable Build
+                if (watermarkTMP != null)
                 {
-                    string versionTxt = (string)gvType.GetField("CURRENT_VERSION").GetValue(gvo.GetComponent("YARG.GlobalVariables"));
-                    watermarkTMP.text = String.Format("<b>YARG {0}</b>", versionTxt);
+                    if (watermarkTMP.text.Contains("YARG v1.22.33b") && gvo != null) // Detect if we're on the Stable Build
+                    {
+                        string versionTxt = (string)gvType.GetField("CURRENT_VERSION").GetValue(gvo.GetComponent("YARG.GlobalVariables"));
+                        watermarkTMP.text = String.Format("<b>YARG {0}</b>", versionTxt);
+                    }
+                    watermarkTMP.text = String.Format("<link=\"RockMeterConfig\"><color=#33FFFF>Rock Meter v{0}</color></link>  •  ", VersionString) + watermarkTMP.text;
                 }
-                watermarkTMP.text = String.Format("<link=\"RockMeterConfig\"><color=#33FFFF>Rock Meter v{0}</color></link>  •  ", VersionString) + watermarkTMP.text;
             }
             if (inGame)
             {
