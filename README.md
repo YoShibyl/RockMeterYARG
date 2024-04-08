@@ -5,7 +5,9 @@
 ![Rock Meter 0 7 0](https://github.com/YoShibyl/RockMeterYARG/assets/18250695/cf236b94-760b-4681-8af5-9de22b9e10e1)
 </details>
 
-A BepInEx 6 mod for YARG v0.12.1+ that adds a Rock Meter, a Combo Meter, and the ability to fail songs
+A BepInEx 6 mod for YARG v0.12.2+ that adds a Rock Meter, a Combo Meter, and the ability to fail songs.
+
+As of v0.7.1 of the mod, only YARG v0.12.2 and newer are supported.
 
 ## Disclaimer
 As this is a modification to the game, bugs may occur and performance may be slightly impacted.  Also, I'm not that great at coding, so if you can improve this, feel free to help out.
@@ -13,7 +15,7 @@ As this is a modification to the game, bugs may occur and performance may be sli
 ## Currently tested and working YARG versions
 | Stable   | Nightly (recommended) |
 |----------|-----------------------|
-| v0.12.1  | b2369                 |
+| v0.12.2  | b2412                 |
 
 ### While this mod and BepInEx are installed, please *DO NOT* report any bugs to YARC, *unless* you can reproduce them in the unmodded game!
 
