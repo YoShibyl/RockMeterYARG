@@ -1,8 +1,8 @@
 # Rock Meter mod for YARG
 <details open>
-<summary>Default Rock Meter (v0.7.0)</summary>
+<summary>Default Rock Meter (v0.7.x)</summary>
 
-![Rock Meter 0 7 0](https://github.com/YoShibyl/RockMeterYARG/assets/18250695/cf236b94-760b-4681-8af5-9de22b9e10e1)
+![Rock Meter 0 7.x](https://github.com/YoShibyl/RockMeterYARG/assets/18250695/cf236b94-760b-4681-8af5-9de22b9e10e1)
 </details>
 
 A BepInEx 6 mod for YARG v0.12.2+ that adds a Rock Meter, a Combo Meter, and the ability to fail songs.
@@ -15,7 +15,7 @@ As this is a modification to the game, bugs may occur and performance may be sli
 ## Currently tested and working YARG versions
 | Stable   | Nightly (recommended) |
 |----------|-----------------------|
-| v0.12.2  | b2412                 |
+| v0.12.4  | b2584                 |
 
 ### While this mod and BepInEx are installed, please *DO NOT* report any bugs to YARC, *unless* you can reproduce them in the unmodded game!
 
@@ -23,7 +23,7 @@ As this is a modification to the game, bugs may occur and performance may be sli
 - Clicking and dragging the Rock Meter or Combo Meter doesn't always work due to the hitbox being half the size of the actual meter for some reason
 
 ## Installation
-1) Install [BepInEx 6.0.0-pre1](https://github.com/BepInEx/BepInEx/releases/tag/v6.0.0-pre.1) to a ***portable installation*** of YARG.
+1) For Windows users, download `BepInEX_UnityMono_x64_6.0.0-pre.1.zip` from [here](https://github.com/BepInEx/BepInEx/releases/tag/v6.0.0-pre.1) and extract the contents to a ***portable installation*** of YARG.
     - You can download the latest nightly build of YARG [here](https://github.com/YARC-Official/YARG-BleedingEdge/releases) and then extract it to its own folder.
 2) Download and extract the latest release of the mod from [Releases](https://github.com/YoShibyl/RockMeterYARG/releases)
 3) Launch `YARG.exe`, and then load into a song.
