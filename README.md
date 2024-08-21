@@ -1,9 +1,11 @@
-# Rock Meter mod for YARG
+# Rock Meter mod for YARG *(deprecated as of YARG v0.12.5)*
 <details open>
 <summary>Default Rock Meter (v0.7.x)</summary>
 
 ![Rock Meter 0 7.x](https://github.com/YoShibyl/RockMeterYARG/assets/18250695/cf236b94-760b-4681-8af5-9de22b9e10e1)
 </details>
+
+## This mod is likely discontinued due to issues that I can't fix at the moment.  Sorry.
 
 A BepInEx 6 mod for YARG v0.12.2+ that adds a Rock Meter, a Combo Meter, and the ability to fail songs.
 
